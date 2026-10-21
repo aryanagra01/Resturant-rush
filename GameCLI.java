@@ -21,6 +21,11 @@ public class GameCLI {
         System.out.println("Customers choose their own food.");
         System.out.println("An invalid choice is explained, and you can choose again.");
         System.out.println();
+        System.out.println("Customer types:");
+        System.out.println("- Regular: loses 8 satisfaction per turn while waiting or seated, pays full price, and chooses food from their customer id.");
+        System.out.println("- VIP: loses 5 satisfaction per turn while waiting or seated, and receives a 10% discount.");
+        System.out.println("- Critic: loses 12 satisfaction per turn while waiting or seated, always orders Pasta, and gains 10 satisfaction if served within 2 turns of ordering. Satisfaction cannot exceed 100.");
+        System.out.println();
         System.out.println("Win at the end of turn 18 if all three are true:");
         System.out.println("- at least " + Restaurant.TARGET_PAID_CUSTOMERS + " paid customers");
         System.out.println("- revenue at least "
@@ -75,6 +80,7 @@ public class GameCLI {
             for (int i = 0; i < waiting.size(); i++) {
                 Customer customer = waiting.get(i);
                 System.out.println("  " + customer.getName()
+                        + " (" + getCustomerType(customer) + ")"
                         + " | Satisfaction: " + customer.getSatisfaction());
             }
         }
@@ -93,6 +99,7 @@ public class GameCLI {
                 Customer seated = table.getCustomer();
                 System.out.println("  Table " + table.getTableId() + ": "
                         + seated.getName()
+                        + " (" + getCustomerType(seated) + ")"
                         + " | " + formatStatus(seated.getStatus().toString())
                         + " | Satisfaction: " + seated.getSatisfaction()
                         + " | " + describeOrder(seated.getOrder()));
@@ -111,6 +118,7 @@ public class GameCLI {
             for (int i = 0; i < customers.size(); i++) {
                 Customer customer = customers.get(i);
                 System.out.println("  " + customer.getName()
+                        + " (" + getCustomerType(customer) + ")"
                         + " | " + formatStatus(customer.getStatus().toString())
                         + " | Satisfaction: " + customer.getSatisfaction()
                         + " | " + describeOrder(customer.getOrder()));
@@ -229,9 +237,21 @@ public class GameCLI {
             return "No order";
         }
         return "Order " + order.getOrderId() + ": " + order.getMenuItem().getName()
+                + " " + formatMoney(order.getBillCents())
                 + " (" + formatStatus(order.getStatus().toString())
                 + ", " + order.getPreparedUnits() + "/"
                 + order.getMenuItem().getPreparationUnits() + ")";
+    }
+
+    // Shown next to the customer name. This does not affect gameplay.
+    private String getCustomerType(Customer customer) {
+        if (customer instanceof VIPCustomer) {
+            return "VIP";
+        } else if (customer instanceof CriticCustomer) {
+            return "Critic";
+        } else {
+            return "Regular";
+        }
     }
 
     // Makes enum statuses easier to read.

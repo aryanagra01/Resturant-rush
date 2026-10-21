@@ -1,6 +1,4 @@
-/**
- * Represents a customer's current stage in the dining process.
- */
+//enum for the stages of customer status
 public enum CustomerStatus {
     WAITING,
     SEATED,

@@ -1,8 +1,10 @@
 public class Customer {
+    //constants shared by all customers
     private static final int INITIAL_SATISFACTION = 100;
     private static final int SATISFACTION_LOSS = 8;
     private static final int NOT_SERVED = -1;
 
+    //name and id are final
     private final int customerId;
     private final String name;
     private int satisfaction;
@@ -10,12 +12,6 @@ public class Customer {
     private Order order;
     private int servedTurn;
 
-    /**
-     * Creates a waiting customer with full satisfaction and no order.
-     *
-     * @param customerId the customer's unique identifier
-     * @param name       the customer's display name
-     */
     public Customer(int customerId, String name) {
         if (customerId < 0) {
             throw new IllegalArgumentException("Customer ID cannot be negative.");
@@ -32,6 +28,7 @@ public class Customer {
         servedTurn = NOT_SERVED;
     }
 
+    //getters and setters
     public int getCustomerId() {
         return customerId;
     }
@@ -52,7 +49,8 @@ public class Customer {
         return order;
     }
 
-    /** Associates the customer's first order with them. */
+    //order can only be taken when seated and no order is taken 
+    //null order cant be throw as a parameter
     public void assignOrder(Order order) {
         if (status != CustomerStatus.SEATED) {
             throw new IllegalStateException(
@@ -68,13 +66,15 @@ public class Customer {
         this.order = order;
     }
 
-    /** Moves the customer from the waiting queue to a table. */
+    //customer should be waiting before they can be seated
     public void seat() {
         requireStatus(CustomerStatus.WAITING, "be seated");
         status = CustomerStatus.SEATED;
     }
 
-    /** Records that food was served and starts the customer's meal. */
+    
+    //servedTurn is set to the turn the order was given and status is updated
+    //called by waiter
     public void startEating(int turn) {
         requireStatus(CustomerStatus.SEATED, "start eating");
         if (order == null || order.getStatus() != OrderStatus.SERVED) {
@@ -86,7 +86,7 @@ public class Customer {
         servedTurn = turn;
     }
 
-    /** Finishes the meal on a turn after the food was served. */
+    //called by game controller
     public void finishEating(int turn) {
         requireStatus(CustomerStatus.EATING, "finish eating");
         if (turn <= servedTurn) {
@@ -97,27 +97,25 @@ public class Customer {
         status = CustomerStatus.READY_TO_PAY;
     }
 
-    /** Marks a customer who is ready to pay as paid. */
+    //from ready to pay to paid called by cashier
     public void markPaid() {
         requireStatus(CustomerStatus.READY_TO_PAY, "pay");
         status = CustomerStatus.PAID;
     }
 
-    /** Reduces satisfaction by eight points without going below zero. */
+    //called by gamecontroller
     public void decreaseSatisfaction() {
         satisfaction = Math.max(0, satisfaction - SATISFACTION_LOSS);
     }
 
-    /**
-     * Returns whether the customer should leave before receiving service.
-     */
+    //called by gamecontroller to check when satisfaction has sit zero while waiting or seated
     public boolean isAbandoning() {
         return satisfaction == 0
                 && (status == CustomerStatus.WAITING
                         || status == CustomerStatus.SEATED);
     }
 
-    /** Makes an unpaid customer leave the restaurant. */
+    //called by gamecontroller to update status to left
     public void leave() {
         if (status == CustomerStatus.PAID || status == CustomerStatus.LEFT) {
             throw new IllegalStateException(
@@ -132,6 +130,7 @@ public class Customer {
         status = CustomerStatus.LEFT;
     }
 
+    //status chcker called by functions within this class
     private void requireStatus(CustomerStatus requiredStatus, String action) {
         if (status != requiredStatus) {
             throw new IllegalStateException(

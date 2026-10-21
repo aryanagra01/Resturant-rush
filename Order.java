@@ -1,6 +1,4 @@
-/**
- * Represents a customer's food order and manages its state transitions.
- */
+//created by the wiater object when a order is ordered
 public class Order {
     private final int orderId;
     private final MenuItem menuItem;
@@ -8,13 +6,7 @@ public class Order {
     private OrderStatus status;
     private final int billCents;
 
-    /**
-     * Creates a placed order whose bill is locked at the supplied amount.
-     *
-     * @param orderId  the order's unique identifier
-     * @param menuItem the ordered menu item
-     * @param billCents the final bill in cents
-     */
+
     public Order(int orderId, MenuItem menuItem, int billCents) {
         if (orderId < 0) {
             throw new IllegalArgumentException("Order ID cannot be negative.");
@@ -33,6 +25,7 @@ public class Order {
         status = OrderStatus.PLACED;
     }
 
+    //getters and setters
     public int getOrderId() {
         return orderId;
     }
@@ -54,6 +47,8 @@ public class Order {
     }
 
     /** Advances preparation by exactly one unit. */
+    //called by chef to advance the order by one unit
+    //only when order is placed or preparing
     public void prepareOneUnit() {
         if (status != OrderStatus.PLACED
                 && status != OrderStatus.PREPARING) {
@@ -61,31 +56,34 @@ public class Order {
                     "Only a placed or preparing order can be prepared.");
         }
 
+        //one turn to go from placed order to preparing
         status = OrderStatus.PREPARING;
         preparedUnits++;
 
+        //update status when ready
         if (preparedUnits == menuItem.getPreparationUnits()) {
             status = OrderStatus.READY;
         }
     }
 
+    //check function called by waiter
     public boolean isReady() {
         return status == OrderStatus.READY;
     }
 
-    /** Marks a ready order as served. */
+    //called by waiter to update status
     public void serve() {
         requireStatus(OrderStatus.READY, "be served");
         status = OrderStatus.SERVED;
     }
 
-    /** Marks a served order as paid. */
+    //called by cashhier to update satus to paid
     public void markPaid() {
         requireStatus(OrderStatus.SERVED, "be paid");
         status = OrderStatus.PAID;
     }
 
-    /** Cancels an order that has not yet been served. */
+    // caled by gamecontroller to cancel an unfinished order when customer abandons
     public void cancel() {
         if (status != OrderStatus.PLACED
                 && status != OrderStatus.PREPARING
@@ -97,6 +95,7 @@ public class Order {
         status = OrderStatus.CANCELLED;
     }
 
+    //check fucntion used by class functions
     private void requireStatus(OrderStatus requiredStatus, String action) {
         if (status != requiredStatus) {
             throw new IllegalStateException(

@@ -1,6 +1,4 @@
-/**
- * Represents an order's current preparation and payment state.
- */
+//order status that is goes through that the order object checks using
 public enum OrderStatus {
     PLACED,
     PREPARING,

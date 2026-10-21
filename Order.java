@@ -5,9 +5,9 @@ public class Order {
     private int preparedUnits;
     private OrderStatus status;
     private final int billCents;
+    private final int placedTurn;
 
-
-    public Order(int orderId, MenuItem menuItem, int billCents) {
+    public Order(int orderId, MenuItem menuItem, int billCents, int placedTurn) {
         if (orderId < 0) {
             throw new IllegalArgumentException("Order ID cannot be negative.");
         }
@@ -17,12 +17,22 @@ public class Order {
         if (billCents < 0) {
             throw new IllegalArgumentException("Bill cannot be negative.");
         }
+        if (placedTurn < 1) {
+            throw new IllegalArgumentException("Placed turn must be at least 1.");
+        }
 
         this.orderId = orderId;
         this.menuItem = menuItem;
         this.billCents = billCents;
+        this.placedTurn = placedTurn;
         preparedUnits = 0;
         status = OrderStatus.PLACED;
+    }
+
+    // temporary so Waiter still compiles. removed in prompt 3
+    // once Waiter passes the real placement turn.
+    public Order(int orderId, MenuItem menuItem, int billCents) {
+        this(orderId, menuItem, billCents, 1);
     }
 
     //getters and setters
@@ -44,6 +54,10 @@ public class Order {
 
     public int getBillCents() {
         return billCents;
+    }
+
+    public int getPlacedTurn() {
+        return placedTurn;
     }
 
     /** Advances preparation by exactly one unit. */

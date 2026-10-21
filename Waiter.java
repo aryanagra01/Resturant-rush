@@ -47,7 +47,7 @@ public class Waiter extends Staff {
 
     //called by gamecontroller
     //creates the order, gives it to the seated customer, and returns it
-    //bill is the menu price because stage 1 customers pay full price
+    //the bill is the menu price after the customer's discount
     public Order takeOrder(Customer customer, MenuItem item, int turn) {
         if (turn < 1) {
             throw new IllegalArgumentException("Turn must be at least 1.");
@@ -70,7 +70,9 @@ public class Waiter extends Staff {
             throw new IllegalStateException("Customer already has an order.");
         }
 
-        Order order = new Order(nextOrderId, item, item.getPriceCents());
+        int priceCents = item.getPriceCents();
+        int billCents = customer.applyDiscount(priceCents);
+        Order order = new Order(nextOrderId, item, billCents, turn);
         customer.assignOrder(order);
         nextOrderId++;
         lastActionTurn = turn;
@@ -104,6 +106,7 @@ public class Waiter extends Staff {
 
         order.serve();
         customer.startEating(turn);
+        customer.onFoodServed(order.getPlacedTurn(), turn);
         lastActionTurn = turn;
     }
 

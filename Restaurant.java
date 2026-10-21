@@ -164,8 +164,7 @@ public class Restaurant {
         return null;
     }
 
-    // Deterministic food choice based on customer id. Rejects an empty menu.
-    // Uses the menu length so a later item can be added without a fixed "3".
+    // The customer chooses the item. Rejects a null customer and an empty menu.
     public MenuItem selectMenuItem(Customer customer) {
         if (customer == null) {
             throw new IllegalArgumentException("Customer cannot be null.");
@@ -174,8 +173,7 @@ public class Restaurant {
             throw new IllegalStateException("The menu is empty.");
         }
 
-        int index = Math.floorMod(customer.getCustomerId(), menu.size());
-        return menu.get(index);
+        return customer.chooseMenuItem(menu);
     }
 
     // Called by Cashier after a successful payment

@@ -49,6 +49,11 @@ public class Customer {
         return order;
     }
 
+    // called by cashier uses this to reject payment on the same turn eating finished
+    public int getServedTurn() {
+        return servedTurn;
+    }
+
     //order can only be taken when seated and no order is taken 
     //null order cant be throw as a parameter
     public void assignOrder(Order order) {
@@ -104,8 +109,12 @@ public class Customer {
     }
 
     //called by gamecontroller
+    //only waiting or seated customers lose satisfaction
     public void decreaseSatisfaction() {
-        satisfaction = Math.max(0, satisfaction - SATISFACTION_LOSS);
+        if (status == CustomerStatus.WAITING
+                || status == CustomerStatus.SEATED) {
+            satisfaction = Math.max(0, satisfaction - SATISFACTION_LOSS);
+        }
     }
 
     //called by gamecontroller to check when satisfaction has sit zero while waiting or seated

@@ -43,7 +43,7 @@ public class GameController {
         processArrivals();
         cli.displayGameState(restaurant, currentTurn);
         processManagerChoices();
-        processKitchenAndServing();
+        processChefChoices();
         processEatingAndPayment();
         processSatisfactionAndAbandonment();
         cli.displayTurnResults(restaurant, currentTurn);
@@ -65,7 +65,7 @@ public class GameController {
     }
 
     // Reads and performs one waiter task before the chef is asked.
-    // An invalid action is retried without using the waiter's task.
+    // If the action fails, the manager can choose again without losing the turn.
     private void processManagerChoices() {
         while (true) {
             int action = readWaiterChoice();
@@ -86,7 +86,7 @@ public class GameController {
 
     // The chef acts after the waiter, so a newly placed order can be prepared.
     // An order that becomes READY here cannot be served until a later turn.
-    private void processKitchenAndServing() {
+    private void processChefChoices() {
         while (true) {
             cli.displayChefActions(chefActionLines());
             int choice = cli.getChefChoice();
@@ -104,7 +104,7 @@ public class GameController {
 
             try {
                 restaurant.getChef().prepareOrder(order, currentTurn);
-                String readyNote = order.isReady() ? " The order is READY." : "";
+                String readyNote = order.isReady() ? " The order is ready." : "";
                 cli.displayMessage("The chef prepared one unit of "
                         + order.getMenuItem().getName()
                         + " for order " + order.getOrderId()
@@ -197,7 +197,8 @@ public class GameController {
         }
     }
 
-    // Reads a valid waiter action (0 to 3).
+    // Displays the waiter actions and returns the selected choice by calling cli
+    // Keeps asking until the manager enters a valid number from 0 to 3.
     private int readWaiterChoice() {
         while (true) {
             cli.displayWaiterActions();
@@ -210,7 +211,8 @@ public class GameController {
         }
     }
 
-    // Finds the selected customer and carries out the waiter action.
+    // Executes the selected waiter action on the chosen customer by finding them
+    // Throws an error if the customer does not exist or the action is invalid.
     private void executeWaiterChoice(int action, int customerId) {
         if (action == WAITER_WAIT) {
             cli.displayMessage("The waiter waits.");
@@ -231,6 +233,8 @@ public class GameController {
         }
     }
 
+    //called by exectute watier choice, 
+    // find avialble table, seat cuomser and remove them from waiting queue
     private void seatCustomer(Customer customer) {
         Table table = restaurant.getAvailableTable();
         if (table == null) {
@@ -242,6 +246,8 @@ public class GameController {
                 + " at table " + table.getTableId() + ".");
     }
 
+    // called by exectute watier choice, 
+    //determine the customer's menu choic (detemirnstic thing) e and ask the waiter to create an order.
     private void takeCustomerOrder(Customer customer) {
         MenuItem item = restaurant.selectMenuItem(customer);
         Order order = restaurant.getWaiter().takeOrder(customer, item, currentTurn);
@@ -252,6 +258,7 @@ public class GameController {
                 + "). Order id " + order.getOrderId() + ".");
     }
 
+    //serve a ready order and cusomter is then served
     private void serveCustomer(Customer customer) {
         restaurant.getWaiter().serveOrder(customer, currentTurn);
         restaurant.recordService();
@@ -259,7 +266,10 @@ public class GameController {
                 + ". The customer is now eating.");
     }
 
+    
     private void abandonCustomer(Customer customer) {
+
+        //check if order is not completed or paid and then sets boolean to cancel 
         Order order = customer.getOrder();
         boolean cancelledOrder = false;
         if (order != null
@@ -270,6 +280,8 @@ public class GameController {
             cancelledOrder = true;
         }
 
+
+        //remove from waiting queue or the table
         String tableNote = "";
         if (customer.getStatus() == CustomerStatus.WAITING) {
             restaurant.removeFromWaitingQueue(customer);
@@ -282,8 +294,11 @@ public class GameController {
             }
         }
 
+        //updates the 2 statuses
         customer.leave();
         restaurant.recordAbandonment();
+
+        //finally display
         String orderNote = "";
         if (cancelledOrder) {
             orderNote = " Order " + order.getOrderId() + " was cancelled.";
@@ -293,6 +308,7 @@ public class GameController {
     }
 
     // Builds the list of chef actions for orders needing preparation.
+    // Only placed or preparing orders are displayed.
     private ArrayList<String> chefActionLines() {
         ArrayList<String> lines = new ArrayList<>();
         lines.add("0. Wait");
@@ -316,6 +332,7 @@ public class GameController {
     }
 
     // Finds an order using its ID.
+    // Returns null if no matching order exists.
     private Order findOrder(int orderId) {
         for (int i = 0; i < restaurant.getCustomers().size(); i++) {
             Customer customer = restaurant.getCustomers().get(i);

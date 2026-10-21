@@ -1,6 +1,9 @@
+import java.util.ArrayList;
+
 public class Customer {
     //constants shared by all customers
     private static final int INITIAL_SATISFACTION = 100;
+    private static final int MAX_SATISFACTION = 100;
     private static final int SATISFACTION_LOSS = 8;
     private static final int NOT_SERVED = -1;
 
@@ -108,13 +111,52 @@ public class Customer {
         status = CustomerStatus.PAID;
     }
 
+    //points lost each turn while waiting or seated. subclasses override this
+    public int getSatisfactionLoss() {
+        return SATISFACTION_LOSS;
+    }
+
+    //same index rule as Restaurant.selectMenuItem
+    public MenuItem chooseMenuItem(ArrayList<MenuItem> menu) {
+        if (menu == null) {
+            throw new IllegalArgumentException("Menu cannot be null.");
+        }
+        if (menu.isEmpty()) {
+            throw new IllegalStateException("The menu is empty.");
+        }
+
+        int index = Math.floorMod(customerId, menu.size());
+        return menu.get(index);
+    }
+
+    //regular customers pay the full price
+    public int applyDiscount(int priceCents) {
+        if (priceCents < 0) {
+            throw new IllegalArgumentException("Price cannot be negative.");
+        }
+        return priceCents;
+    }
+
+    //waiter can call this after serving. regular customers do nothing
+    public void onFoodServed(int placedTurn, int servedTurn) {
+    }
+
     //called by gamecontroller
     //only waiting or seated customers lose satisfaction
     public void decreaseSatisfaction() {
         if (status == CustomerStatus.WAITING
                 || status == CustomerStatus.SEATED) {
-            satisfaction = Math.max(0, satisfaction - SATISFACTION_LOSS);
+            satisfaction = Math.max(0, satisfaction - getSatisfactionLoss());
         }
+    }
+
+    //subclasses use this to raise satisfaction. it cannot pass 100
+    protected void increaseSatisfaction(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException(
+                    "Satisfaction increase cannot be negative.");
+        }
+        satisfaction = Math.min(MAX_SATISFACTION, satisfaction + amount);
     }
 
     //called by gamecontroller to check when satisfaction has sit zero while waiting or seated

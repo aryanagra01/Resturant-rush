@@ -129,8 +129,9 @@ public class GameController {
     // Finds customers who were already ready to pay.
     private ArrayList<Customer> getReadyToPayCustomers() {
         ArrayList<Customer> readyCustomers = new ArrayList<>();
-        for (int i = 0; i < restaurant.getCustomers().size(); i++) {
-            Customer customer = restaurant.getCustomers().get(i);
+        ArrayList<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
             if (customer.getStatus() == CustomerStatus.READY_TO_PAY) {
                 readyCustomers.add(customer);
             }
@@ -140,8 +141,9 @@ public class GameController {
 
     // Customers served in an earlier turn finish eating.
     private void processEating() {
-        for (int i = 0; i < restaurant.getCustomers().size(); i++) {
-            Customer customer = restaurant.getCustomers().get(i);
+        ArrayList<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
             if (customer.getStatus() == CustomerStatus.EATING
                     && currentTurn > customer.getServedTurn()) {
                 customer.finishEating(currentTurn);
@@ -184,8 +186,9 @@ public class GameController {
 
     // Waiting and seated customers lose satisfaction. At 0 they leave.
     private void processSatisfactionAndAbandonment() {
-        for (int i = 0; i < restaurant.getCustomers().size(); i++) {
-            Customer customer = restaurant.getCustomers().get(i);
+        ArrayList<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
             if (customer.getStatus() != CustomerStatus.WAITING
                     && customer.getStatus() != CustomerStatus.SEATED) {
                 continue;
@@ -312,8 +315,9 @@ public class GameController {
     private ArrayList<String> chefActionLines() {
         ArrayList<String> lines = new ArrayList<>();
         lines.add("0. Wait");
-        for (int i = 0; i < restaurant.getCustomers().size(); i++) {
-            Customer customer = restaurant.getCustomers().get(i);
+        ArrayList<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
             Order order = customer.getOrder();
             if (order == null) {
                 continue;
@@ -334,8 +338,9 @@ public class GameController {
     // Finds an order using its ID.
     // Returns null if no matching order exists.
     private Order findOrder(int orderId) {
-        for (int i = 0; i < restaurant.getCustomers().size(); i++) {
-            Customer customer = restaurant.getCustomers().get(i);
+        ArrayList<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
             Order order = customer.getOrder();
             if (order != null && order.getOrderId() == orderId) {
                 return order;

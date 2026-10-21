@@ -29,12 +29,6 @@ public class Order {
         status = OrderStatus.PLACED;
     }
 
-    // temporary so Waiter still compiles. removed in prompt 3
-    // once Waiter passes the real placement turn.
-    public Order(int orderId, MenuItem menuItem, int billCents) {
-        this(orderId, menuItem, billCents, 1);
-    }
-
     //getters and setters
     public int getOrderId() {
         return orderId;

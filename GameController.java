@@ -50,15 +50,24 @@ public class GameController {
     }
 
     // One scheduled customer on turns 1, 4, 7, 10, 13 and 16.
+    // Turn 4 is a VIP and turn 10 is a critic. The others are regular.
     private void processArrivals() {
         for (int i = 0; i < ARRIVAL_TURNS.length; i++) {
             if (ARRIVAL_TURNS[i] != currentTurn) {
                 continue;
             }
 
-            Customer customer = new Customer(nextCustomerId, "Customer " + nextCustomerId);
-            nextCustomerId++;
+            Customer customer;
+            if (currentTurn == 4) {
+                customer = new VIPCustomer(nextCustomerId, "Customer " + nextCustomerId);
+            } else if (currentTurn == 10) {
+                customer = new CriticCustomer(nextCustomerId, "Customer " + nextCustomerId);
+            } else {
+                customer = new Customer(nextCustomerId, "Customer " + nextCustomerId);
+            }
+
             restaurant.addCustomer(customer);
+            nextCustomerId++;
             cli.displayMessage(customer.getName()
                     + " arrived and joined the waiting queue.");
         }
@@ -255,7 +264,7 @@ public class GameController {
         MenuItem item = restaurant.selectMenuItem(customer);
         Order order = restaurant.getWaiter().takeOrder(customer, item, currentTurn);
         cli.displayMessage(customer.getName() + " ordered " + item.getName()
-                + " (" + GameCLI.formatMoney(item.getPriceCents())
+                + " (" + GameCLI.formatMoney(order.getBillCents())
                 + ", " + item.getPreparationUnits() + " preparation unit"
                 + (item.getPreparationUnits() == 1 ? "" : "s")
                 + "). Order id " + order.getOrderId() + ".");

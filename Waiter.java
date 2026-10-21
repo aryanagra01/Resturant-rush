@@ -47,7 +47,7 @@ public class Waiter extends Staff {
 
     //called by gamecontroller
     //creates the order, gives it to the seated customer, and returns it
-    //the bill is the menu price after the customer's discount
+    //the bill is the menu price after the customer's discount (only CIP has discount)
     public Order takeOrder(Customer customer, MenuItem item, int turn) {
         if (turn < 1) {
             throw new IllegalArgumentException("Turn must be at least 1.");
@@ -106,6 +106,7 @@ public class Waiter extends Staff {
 
         order.serve();
         customer.startEating(turn);
+        //waiter calls this after serving, regualr and VIP do ntohign this iis from critics
         customer.onFoodServed(order.getPlacedTurn(), turn);
         lastActionTurn = turn;
     }

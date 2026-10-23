@@ -5,119 +5,77 @@ import entities.customer.CustomerStatus;
 import entities.customer.Order;
 import entities.menu.MenuItem;
 import entities.restaurant.Table;
+import java.util.Objects;
+import utility.IdSequence;
+import utility.Require;
 
-//seats customers, takes orders and serves ready food
-//one successful task per turn
-//a failed task does not update lastActionTurn like the chef and cashier
+/** Seats customers, takes orders and serves ready food. One task per turn (see Staff). */
 public class Waiter extends Staff {
-    private static final int NOT_ACTED = -1;
+    private final IdSequence orderIds;
 
-    private int lastActionTurn;
-    
-    // Tracks the ID to assign to the next order
-    private int nextOrderId;
-
-    public Waiter(int staffId, String name) {
+    /**
+     * @param orderIds where order ids come from; share one sequence between all
+     *                 waiters so ids never repeat
+     */
+    public Waiter(int staffId, String name, IdSequence orderIds) {
         super(staffId, name);
-        lastActionTurn = NOT_ACTED;
-        nextOrderId = 1;
+        this.orderIds = Objects.requireNonNull(orderIds, "Order ids cannot be null.");
     }
 
-    //called by gamecontroller
-    //customer must be waiting and the table must be free
-    //does not remove the customer from the waiting queue, gamecontroller handles that 
+    /**
+     * Seats a waiting customer at a free table. GameController removes the customer
+     * from the waiting queue afterwards.
+     *
+     * @throws utility.GameRuleException if the customer is not waiting or the table is taken
+     */
     public void seatCustomer(Customer customer, Table table, int turn) {
-        if (turn < 1) {
-            throw new IllegalArgumentException("Turn must be at least 1.");
-        }
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer cannot be null.");
-        }
-        if (table == null) {
-            throw new IllegalArgumentException("Table cannot be null.");
-        }
-        if (!canAct(turn)) {
-            throw new IllegalStateException(
-                    "Waiter has already completed a task this turn.");
-        }
-        if (customer.getStatus() != CustomerStatus.WAITING) {
-            throw new IllegalStateException(
-                    "Only a waiting customer can be seated.");
-        }
-        if (!table.isAvailable()) {
-            throw new IllegalStateException("Table is already occupied.");
-        }
+        performTask(turn, () -> {
+            Objects.requireNonNull(customer, "Customer cannot be null.");
+            Objects.requireNonNull(table, "Table cannot be null.");
+            Require.rule(customer.canBeSeated(), "Only a waiting customer can be seated.");
+            Require.rule(table.isAvailable(), "Table is already occupied.");
 
-        table.occupy(customer);
-        customer.seat();
-        lastActionTurn = turn;
+            table.occupy(customer);
+            customer.seat();
+        });
     }
 
-    //called by gamecontroller
-    //creates the order, gives it to the seated customer, and returns it
-    //the bill is the menu price after the customer's discount (only CIP has discount)
+    /**
+     * Takes a seated customer's order. The bill is priced by the customer object
+     * (dynamic binding: VIPs get a discount) and locked in the new order.
+     *
+     * @throws utility.GameRuleException if the customer is not seated or already ordered
+     */
     public Order takeOrder(Customer customer, MenuItem item, int turn) {
-        if (turn < 1) {
-            throw new IllegalArgumentException("Turn must be at least 1.");
-        }
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer cannot be null.");
-        }
-        if (item == null) {
-            throw new IllegalArgumentException("Menu item cannot be null.");
-        }
-        if (!canAct(turn)) {
-            throw new IllegalStateException(
-                    "Waiter has already completed a task this turn.");
-        }
-        if (customer.getStatus() != CustomerStatus.SEATED) {
-            throw new IllegalStateException(
+        return performTask(turn, () -> {
+            Objects.requireNonNull(customer, "Customer cannot be null.");
+            Objects.requireNonNull(item, "Menu item cannot be null.");
+            Require.rule(customer.getStatus() == CustomerStatus.SEATED,
                     "Only a seated customer can place an order.");
-        }
-        if (customer.getOrder().orElse(null) != null) {
-            throw new IllegalStateException("Customer already has an order.");
-        }
+            Require.rule(customer.canPlaceOrder(), "Customer already has an order.");
 
-        int priceCents = item.getPriceCents();
-        int billCents = customer.calculateBill(priceCents);
-        Order order = new Order(nextOrderId, item, billCents, turn);
-        customer.assignOrder(order);
-        nextOrderId++;
-        lastActionTurn = turn;
-        return order;
+            int billCents = customer.calculateBill(item.getPriceCents());
+            Order order = new Order(orderIds.next(), item, billCents, turn);
+            customer.assignOrder(order);
+            return order;
+        });
     }
 
-    //called by gamecontroller
-    //order must already be ready before this is called
-    //gamecontroller must run the waiter before the chef, so food that becomes ready this turn is not served until a later turn
+    /**
+     * Serves a READY order. GameController runs the Waiter before the Chef, so food
+     * that becomes ready this turn is served on a later turn at the earliest.
+     *
+     * @throws utility.GameRuleException if the customer is not seated or the order is not ready
+     */
     public void serveOrder(Customer customer, int turn) {
-        if (turn < 1) {
-            throw new IllegalArgumentException("Turn must be at least 1.");
-        }
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer cannot be null.");
-        }
-        if (!canAct(turn)) {
-            throw new IllegalStateException(
-                    "Waiter has already completed a task this turn.");
-        }
-        if (customer.getStatus() != CustomerStatus.SEATED) {
-            throw new IllegalStateException(
+        performTask(turn, () -> {
+            Objects.requireNonNull(customer, "Customer cannot be null.");
+            Require.rule(customer.getStatus() == CustomerStatus.SEATED,
                     "Only a seated customer can be served.");
-        }
-
-        Order order = customer.getOrder().orElse(null);
-        if (order == null || !order.isReady()) {
-            throw new IllegalStateException(
+            Require.rule(customer.canBeServed(),
                     "Customer can only be served a ready order.");
-        }
 
-        customer.receiveFood(turn);
-        lastActionTurn = turn;
-    }
-
-    //true when this turn is valid and the waiter has not finished a task yet
-    public boolean canAct(int turn) {
-        return turn >= 1 && lastActionTurn != turn;
+            customer.receiveFood(turn);
+        });
     }
 }

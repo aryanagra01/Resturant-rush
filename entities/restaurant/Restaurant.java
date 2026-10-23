@@ -10,6 +10,7 @@ import entities.staff.Chef;
 import entities.staff.Waiter;
 
 import java.util.ArrayList;
+import utility.IdSequence;
 
 // Stores tables, the waiting queue, customers, staff, the menu and statistics.
 // GameController decides when these change. This class does not read console input.
@@ -52,7 +53,7 @@ public class Restaurant {
         menu.add(new MenuItem("Pasta", 1800, 2));
         menu.add(new MenuItem("Burger", 1500, 1));
 
-        waiter = new Waiter(1, "Waiter");
+        waiter = new Waiter(1, "Waiter", new IdSequence());
         chef = new Chef(2, "Chef");
         cashier = new Cashier(3, "Cashier");
     }

@@ -1,3 +1,9 @@
 *.class
 victory-run.txt
 defeat-run.txt
+
+# macOS folder metadata
+.DS_Store
+
+# compiled output (javac -d out)
+out/

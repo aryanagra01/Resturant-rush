@@ -12,7 +12,7 @@ Requires **Java 15 or newer** (the CLI uses text blocks). No libraries and no ne
 access needed.
 
 ```bash
-javac -d out *.java
+javac -d out $(find . -name "*.java" -not -path "./test/*")
 ```
 ```bash
 java -cp out Main
@@ -57,7 +57,7 @@ least $45.00, and average satisfaction of paid customers of at least 60.
 |---|---|---|---|---|
 | Regular | 8 | Full price | Menu item at index *customer id mod 3* | — |
 | VIP | 5 | 10% off | Same as Regular | — |
-| Critic | 12 | Full price | Always Pasta | +10 satisfaction if served within 2 turns of ordering (max 100) |
+| Critic | 12 | Full price | Pasta (on a menu without Pasta, the Regular rule) | +10 satisfaction if served within 2 turns of ordering (max 100) |
 
 Customers lose satisfaction only while waiting for a table or for food. A customer who
 reaches 0 leaves without paying: any unfinished order is cancelled and the table is
@@ -66,13 +66,13 @@ freed.
 ## Tests
 
 ```bash
-javac -d out *.java test/*.java
+javac -d out $(find . -name "*.java")
 ```
 ```bash
 java -cp out Stage2Test
 ```
 
-Expected: `37 passed, 0 failed`. The test cases and the two reproducible runs (one
+Expected: `46 passed, 0 failed`. The test cases and the two reproducible runs (one
 victory, one defeat, both including a VIP and a Critic) are described in
 [test/TEST_NOTES.md](test/TEST_NOTES.md). To replay a run by hand:
 
@@ -82,18 +82,35 @@ java -cp out Main < test/runs/stage2-victory.txt
 
 ## Project structure
 
-| Layer | Classes | Responsibility |
+| Package | Classes | Responsibility |
 |---|---|---|
-| Boundary | `GameCLI` | Shows the state and reads the manager's input. No game rules |
-| Control | `GameController`, `WaiterAction` | Runs the six turn steps in order and dispatches the Waiter's choice |
-| Entity: restaurant | `Restaurant`, `Table`, `MenuItem`, `GameStats`, `BaseSetting` | Tables, queue, menu, staff, statistics, victory check, base setting |
-| Entity: customers | `Customer` (abstract), `RegularCustomer`, `VIPCustomer`, `CriticCustomer`, `CustomerType` | Shared service flow; each type overrides its own behaviour |
-| Entity: staff | `Staff` (abstract), `Waiter`, `Chef`, `Cashier` | One task per turn (in `Staff`); each role's task |
-| Entity: orders | `Order`, `OrderStatus`, `CustomerStatus` | Order lifecycle and status rules |
-| Utility | `Require`, `Money` | Shared validation; formatting cents as dollars |
+| `boundary` | `GameCLI` | Command-line `GameView`: shows the state and reads the manager's input. No game rules |
+| `control` | `GameController`, `WaiterAction`, `GameView` | Runs the six turn steps in order, owns the staff, dispatches the Waiter's choice; `GameView` is the interface the controller needs from a UI |
+| `config` | `GameSettings` | One game's settings; `GameSettings.base()` is the required base setting |
+| `entities.restaurant` | `Restaurant`, `Table`, `GameStats`, `VictoryTargets` | Tables, queue, customers, statistics and the victory check |
+| `entities.customer` | `Customer` (abstract), `RegularCustomer`, `VIPCustomer`, `CriticCustomer`, `CustomerType`, `CustomerStatus`, `Order`, `OrderStatus` | Each customer type's behaviour, and the customer's order |
+| `entities.staff` | `Staff` (abstract), `Waiter`, `Chef`, `Cashier` | One task per turn (in `Staff`); each role's task |
+| `entities.menu` | `MenuItem` | A dish: name, price, preparation units |
+| `utility` | `Require`, `GameRuleException`, `IdSequence`, `Money` | Shared checks, the "refused choice" exception, id numbering, money formatting |
+| (root) | `Main` | Chooses the concrete classes and wires them together |
 
-Design notes on the refactoring and the OOP principles used are in
-[docs/REFACTORING.md](docs/REFACTORING.md).
+Packages only depend downwards (`boundary` → `control` → `config` → `entities.*` →
+`utility`), so there are no cycles. Test Q08 checks this.
+
+## Design diagrams
+
+PlantUML sources and rendered images are in [docs/diagrams](docs/diagrams):
+
+| Diagram | Source | Image |
+|---|---|---|
+| Class diagram (final Stage 2 design, coloured by package) | [class-diagram.puml](docs/diagrams/class-diagram.puml) | [PNG](docs/diagrams/class-diagram.png), [SVG](docs/diagrams/class-diagram.svg) |
+| Sequence diagram: VIP Customer 2 from arrival to payment, with the result check | [sequence-vip-order.puml](docs/diagrams/sequence-vip-order.puml) | [PNG](docs/diagrams/sequence-vip-order.png), [SVG](docs/diagrams/sequence-vip-order.svg) |
+
+To re-render after editing (needs PlantUML and Graphviz), from `docs/diagrams`:
+
+```bash
+PLANTUML_LIMIT_SIZE=16384 plantuml -tpng -tsvg *.puml
+```
 
 ## Stages
 
@@ -107,12 +124,12 @@ Design notes on the refactoring and the OOP principles used are in
 
 Compare: https://github.com/aryanagra01/Resturant-rush/compare/stage-1...stage-2
 
-**Part A: adding VIP and Critic customers**
+**Adding VIP and Critic customers**
 
 | File | Change | Reason |
 |---|---|---|
 | `VIPCustomer.java` | New | Loses 5 per turn and gets 10% off |
-| `CriticCustomer.java` | New | Loses 12 per turn, always orders Pasta, rewards fast service |
+| `CriticCustomer.java` | New | Loses 12 per turn, prefers Pasta, rewards fast service |
 | `Customer.java` | Changed | Added overridable methods (`getSatisfactionLoss`, `chooseMenuItem`, `applyDiscount`, `onFoodServed`) so each type's behaviour is chosen by the customer object, not by type checks in the controller |
 | `Order.java` | Changed | Records `placedTurn`, needed for the Critic's fast-service rule |
 | `Waiter.java` | Changed | Bill now comes from the customer's own pricing (VIP discount); notifies the customer after serving |
@@ -120,28 +137,9 @@ Compare: https://github.com/aryanagra01/Resturant-rush/compare/stage-1...stage-2
 | `GameController.java` | Changed | Turn 4 arrival is a VIP and turn 10 a Critic; shows the discounted bill |
 | `GameCLI.java` | Changed | Explains the three customer types and shows each customer's type |
 
-**Part B: refactoring for reuse** (no change in game behaviour)
-
-Adding Stage 2 showed repeated code across the staff classes, the customer classes, the
-controller and the CLI. It was refactored before tagging the final Stage 2. All 22
-recorded test inputs give identical output before and after.
-
-| File | Change | Reason |
-|---|---|---|
-| `RegularCustomer.java` | New | `Customer` became abstract; regular behaviour moved to its own subclass |
-| `CustomerType.java` | New | Creates each customer type, replacing the `if (turn == 4) … else if (turn == 10)` chain and the `instanceof` checks in the CLI |
-| `WaiterAction.java` | New | Replaces int constants and an if/else chain for the Waiter's menu |
-| `GameStats.java` | New | Statistics and the victory check, split out of `Restaurant` |
-| `BaseSetting.java` | New | All base-setting values in one place |
-| `Require.java`, `Money.java` | New | Shared validation and money formatting, previously copied across classes |
-| `Staff.java` | Changed | Owns the once-per-turn rule (`performTask`), previously copied into all three roles |
-| `Waiter.java`, `Chef.java`, `Cashier.java` | Changed | Use `performTask`; Cashier owns the oldest-first payment choice |
-| `Customer.java` | Changed | Abstract, with final template methods that validate once and call the subclass hooks |
-| `CustomerStatus.java`, `OrderStatus.java`, `Order.java` | Changed | Status rules (e.g. "placed or preparing") written once instead of 4 times |
-| `Restaurant.java` | Changed | One generic search helper; delegates statistics to `GameStats` |
-| `GameController.java` | Changed | No display text; one retry loop for invalid choices |
-| `GameCLI.java` | Changed | Shared formatting helpers; no game rules; 59 `println` calls replaced by one helper |
-| `Restaurant.findTable`, `Cashier.canProcessPayment` | Deleted | Unused / replaced by the inherited `Staff.canAct` |
+Stage 2 was then refactored for reuse, with no change in gameplay. The new, changed
+and deleted files, the reasons and the design trade-offs are in
+[docs/REFACTORING.md](docs/REFACTORING.md).
 
 ### Stage 2 → Stage 3
 

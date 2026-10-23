@@ -1,3 +1,8 @@
+package entities.customer;
+
+import entities.menu.MenuItem;
+import utility.Require;
+
 // Created by the Waiter when a customer orders.
 // The order owns its own status rules; staff only ask it to change.
 public class Order {

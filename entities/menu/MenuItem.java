@@ -1,3 +1,7 @@
+package entities.menu;
+
+import utility.Require;
+
 // One dish on the menu. Immutable once created.
 public class MenuItem {
     private final String name;

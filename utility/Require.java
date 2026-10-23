@@ -1,3 +1,5 @@
+package utility;
+
 // Shared argument and state checks.
 // Every class reports bad input the same way, so the checks are written once here
 // instead of being copied into each constructor and staff method.

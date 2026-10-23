@@ -1,3 +1,5 @@
+package entities.customer;
+
 // The stages an order goes through.
 // Each status knows whether the kitchen can still work on it and whether it is
 // unfinished, so these rules live in one place.

@@ -1,3 +1,6 @@
+package entities.staff;
+
+import utility.Require;
 
 import java.util.function.Supplier;
 

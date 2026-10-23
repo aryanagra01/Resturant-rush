@@ -1,3 +1,12 @@
+package entities.staff;
+
+import entities.customer.Customer;
+import entities.customer.CustomerStatus;
+import entities.customer.Order;
+import entities.customer.OrderStatus;
+import entities.restaurant.Restaurant;
+import entities.restaurant.Table;
+
 //processes one payment per turn
 //gamecontroller chooses the oldest eligible customer
 //a failed payment does not update lastPaymentTurn, hence can process someone else

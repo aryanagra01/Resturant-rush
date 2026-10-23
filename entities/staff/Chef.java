@@ -1,3 +1,8 @@
+package entities.staff;
+
+import entities.customer.Order;
+import utility.Require;
+
 public class Chef extends Staff {
 
     public Chef(int staffId, String name) {

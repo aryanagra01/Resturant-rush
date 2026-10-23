@@ -1,3 +1,6 @@
+package entities.customer;
+
+import entities.menu.MenuItem;
 import java.util.ArrayList;
 
 public class Customer {

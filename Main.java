@@ -1,3 +1,7 @@
+import boundary.GameCLI;
+import control.GameController;
+import entities.restaurant.Restaurant;
+
 // Starts one base-setting game. All rules live in the other classes.
 public class Main {
     public static void main(String[] args) {

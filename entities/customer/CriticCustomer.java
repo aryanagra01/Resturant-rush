@@ -1,3 +1,6 @@
+package entities.customer;
+
+import entities.menu.MenuItem;
 import java.util.ArrayList;
 
 //always orders pasta, loses satisfaction faster, and likes fast service

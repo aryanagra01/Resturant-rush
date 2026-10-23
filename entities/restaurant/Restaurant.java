@@ -1,3 +1,13 @@
+package entities.restaurant;
+
+import entities.customer.Customer;
+import entities.customer.CustomerStatus;
+import entities.customer.Order;
+import entities.customer.OrderStatus;
+import entities.menu.MenuItem;
+import entities.staff.Cashier;
+import entities.staff.Chef;
+import entities.staff.Waiter;
 
 import java.util.ArrayList;
 

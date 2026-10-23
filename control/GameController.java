@@ -1,3 +1,15 @@
+package control;
+
+import boundary.GameCLI;
+import entities.customer.CriticCustomer;
+import entities.customer.Customer;
+import entities.customer.CustomerStatus;
+import entities.customer.Order;
+import entities.customer.OrderStatus;
+import entities.customer.VIPCustomer;
+import entities.menu.MenuItem;
+import entities.restaurant.Restaurant;
+import entities.restaurant.Table;
 import java.util.ArrayList;
 
 // Coordinates the 18 turns. Specific objects apply their own state changes.

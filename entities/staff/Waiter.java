@@ -1,3 +1,11 @@
+package entities.staff;
+
+import entities.customer.Customer;
+import entities.customer.CustomerStatus;
+import entities.customer.Order;
+import entities.menu.MenuItem;
+import entities.restaurant.Table;
+
 //seats customers, takes orders and serves ready food
 //one successful task per turn
 //a failed task does not update lastActionTurn like the chef and cashier

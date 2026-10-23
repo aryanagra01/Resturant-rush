@@ -1,3 +1,5 @@
+package entities.customer;
+
 //loses satisfaction more slowly and pays 10% less
 public class VIPCustomer extends Customer {
 

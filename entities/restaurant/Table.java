@@ -1,3 +1,8 @@
+package entities.restaurant;
+
+import entities.customer.Customer;
+import utility.Require;
+
 // One restaurant table and the customer sitting at it.
 // customer is null when the table is free.
 public class Table {

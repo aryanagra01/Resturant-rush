@@ -1,3 +1,5 @@
+package entities.customer;
+
 // The stages a customer goes through.
 // Each status knows whether the customer is still waiting for service, so the
 // "WAITING or SEATED" check is written once here instead of in several classes.

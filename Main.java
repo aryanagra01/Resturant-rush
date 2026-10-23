@@ -1,13 +1,11 @@
 import boundary.GameCLI;
+import config.GameSettings;
 import control.GameController;
-import entities.restaurant.Restaurant;
 
 // Starts one base-setting game. All rules live in the other classes.
 public class Main {
     public static void main(String[] args) {
-        Restaurant restaurant = new Restaurant();
-        GameCLI cli = new GameCLI();
-        GameController controller = new GameController(restaurant, cli);
+        GameController controller = new GameController(GameSettings.base(), new GameCLI());
         controller.startGame();
     }
 }

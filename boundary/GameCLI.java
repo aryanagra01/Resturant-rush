@@ -1,6 +1,5 @@
 package boundary;
 
-import control.GameController;
 import entities.customer.CriticCustomer;
 import entities.customer.Customer;
 import entities.customer.CustomerStatus;
@@ -10,6 +9,7 @@ import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
+import entities.restaurant.VictoryTargets;
 import java.util.ArrayList;
 import java.util.Scanner;
 import utility.Money;
@@ -24,36 +24,30 @@ public class GameCLI {
     }
 
     // Displays the game rules, victory conditions and menu.
-    
-    // Displays the game rules, victory conditions and menu.
-    public void displayWelcome(Restaurant restaurant) {
-        System.out.println(
-                """
-                    ========================================
-                            Restaurant Rush
-                    ========================================
-                    You are the manager. The game runs for 18 turns.
-                    Each turn the waiter and the chef can each do one task, or wait.
-                    The cashier automatically takes one eligible payment per turn.
-                    Customers choose their own food.
-                    An invalid choice is explained, and you can choose again.
-
-                    Customer types:
-                    - Regular: loses 8 satisfaction per turn while waiting or seated, pays full price, and chooses food from their customer id.
-                    - VIP: loses 5 satisfaction per turn while waiting or seated, and receives a 10% discount.
-                    - Critic: loses 12 satisfaction per turn while waiting or seated, always orders Pasta, and gains 10 satisfaction if served within 2 turns of ordering. Satisfaction cannot exceed 100.
-
-                    Win at the end of turn 18 if all three are true:
-                    - At least %d paid customers
-                    - Revenue at least %s
-                    - Average satisfaction of paid customers at least %d
-
-                    Menu:
-                    """
-                    .formatted(
-                            Restaurant.TARGET_PAID_CUSTOMERS,
-                            Money.format(Restaurant.TARGET_REVENUE_CENTS),
-                            Restaurant.TARGET_AVERAGE_SATISFACTION));
+    public void displayWelcome(Restaurant restaurant, int maxTurns) {
+        VictoryTargets targets = restaurant.getStats().getTargets();
+        System.out.println("========================================");
+        System.out.println("Restaurant Rush");
+        System.out.println("========================================");
+        System.out.println("You are the manager. The game runs for " + maxTurns + " turns.");
+        System.out.println("Each turn the waiter and the chef can each do one task, or wait.");
+        System.out.println("The cashier automatically takes one eligible payment per turn.");
+        System.out.println("Customers choose their own food.");
+        System.out.println("An invalid choice is explained, and you can choose again.");
+        System.out.println();
+        System.out.println("Customer types:");
+        System.out.println("- Regular: loses 8 satisfaction per turn while waiting or seated, pays full price, and chooses food from their customer id.");
+        System.out.println("- VIP: loses 5 satisfaction per turn while waiting or seated, and receives a 10% discount.");
+        System.out.println("- Critic: loses 12 satisfaction per turn while waiting or seated, always orders Pasta, and gains 10 satisfaction if served within 2 turns of ordering. Satisfaction cannot exceed 100.");
+        System.out.println();
+        System.out.println("Win at the end of turn " + maxTurns + " if all three are true:");
+        System.out.println("- at least " + targets.getPaidCustomers() + " paid customers");
+        System.out.println("- revenue at least "
+                + Money.format(targets.getRevenueCents()));
+        System.out.println("- average satisfaction of paid customers at least "
+                + targets.getAverageSatisfaction());
+        System.out.println();
+        System.out.println("Menu:");
 
         ArrayList<MenuItem> menu = restaurant.getMenu();
         for (int i = 0; i < menu.size(); i++) {
@@ -67,35 +61,26 @@ public class GameCLI {
     }
 
     // Displays the restaurant's state at the start of a turn.
-    public void displayGameState(Restaurant restaurant, int turn) {
-        System.out.println("""
-
-                ---------- Turn %d of %d ----------
-                Revenue: %s
-                Average satisfaction of paid customers: %s
-                Paid: %d | Served: %d | Unhappy departures: %d
-                """.formatted(
-                turn,
-                GameController.MAX_TURNS,
-                Money.format(restaurant.getRevenueCents()),
-                formatAverage(restaurant),
-                restaurant.getPaidCount(),
-                restaurant.getServedCount(),
-                restaurant.getUnhappyDepartures()));
+    public void displayGameState(Restaurant restaurant, int turn, int maxTurns) {
+        System.out.println();
+        System.out.println("---------- Turn " + turn + " of "
+                + maxTurns + " ----------");
+        System.out.println("Revenue: " + Money.format(restaurant.getStats().getRevenueCents()));
+        System.out.println("Average satisfaction of paid customers: "
+                + formatAverage(restaurant));
+        System.out.println("Paid: " + restaurant.getStats().getPaidCount()
+                + " | Served: " + restaurant.getStats().getServedCount()
+                + " | Unhappy departures: " + restaurant.getStats().getUnhappyDepartures());
 
         displayWaitingQueue(restaurant);
         displayTables(restaurant);
         displayCustomers(restaurant);
 
-        System.out.println("""
-
-                Available staff tasks:
-                  Waiter: %s
-                  Chef: %s
-                  Cashier: Automatically collects one eligible payment per turn.
-                """.formatted(
-                describeWaiterTasks(restaurant),
-                describeChefTasks(restaurant)));
+        System.out.println();
+        System.out.println("Available staff tasks:");
+        System.out.println("  Waiter: " + describeWaiterTasks(restaurant));
+        System.out.println("  Chef: " + describeChefTasks(restaurant));
+        System.out.println("  Cashier: Automatically collects one eligible payment per turn.");
     }
 
     // Displays customers waiting for a table.
@@ -157,14 +142,12 @@ public class GameCLI {
 
     // Displays the waiter's available action types.
     public void displayWaiterActions() {
-        System.out.println("""
-
-                Waiter actions:
-                0. Wait
-                1. Seat a waiting customer
-                2. Take an order from a seated customer
-                3. Serve an order that is ready
-                """);
+        System.out.println();
+        System.out.println("Waiter actions:");
+        System.out.println("0. Wait");
+        System.out.println("1. Seat a waiting customer");
+        System.out.println("2. Take an order from a seated customer");
+        System.out.println("3. Serve an order that is ready");
     }
 
     // Displays the chef's numbered order choices.
@@ -217,59 +200,43 @@ public class GameCLI {
     }
 
     // Displays game statistics at the end of a turn.
-    public void displayTurnResults(Restaurant restaurant, int turn) {
-        System.out.println("""
-
-                ----- End of turn %d -----
-                Served: %d
-                Unhappy departures: %d
-                Revenue: %s
-                Average satisfaction of paid customers: %s
-                Turns used: %d / %d
-                """.formatted(
-                turn,
-                restaurant.getServedCount(),
-                restaurant.getUnhappyDepartures(),
-                Money.format(restaurant.getRevenueCents()),
-                formatAverage(restaurant),
-                turn,
-                GameController.MAX_TURNS));
+    public void displayTurnResults(Restaurant restaurant, int turn, int maxTurns) {
+        System.out.println();
+        System.out.println("----- End of turn " + turn + " -----");
+        System.out.println("Served: " + restaurant.getStats().getServedCount());
+        System.out.println("Unhappy departures: " + restaurant.getStats().getUnhappyDepartures());
+        System.out.println("Revenue: " + Money.format(restaurant.getStats().getRevenueCents()));
+        System.out.println("Average satisfaction of paid customers: "
+                + formatAverage(restaurant));
+        System.out.println("Turns used: " + turn + " / " + maxTurns);
     }
 
     // Displays victory or defeat and the final statistics.
-    public void displayFinalResults(Restaurant restaurant) {
+    public void displayFinalResults(Restaurant restaurant, int maxTurns) {
+        VictoryTargets targets = restaurant.getStats().getTargets();
         boolean won = restaurant.hasWon();
-
-        System.out.println("""
-
-                ========== Final result: %s ==========
-                Paid customers: %d (need %d)
-                Served: %d
-                Unhappy departures: %d
-                Revenue: %s (need %s)
-                Average satisfaction of paid customers: %s (need %d)
-                Turns used: %d
-                Result: %s
-                """.formatted(
-                won ? "VICTORY" : "DEFEAT",
-                restaurant.getPaidCount(),
-                Restaurant.TARGET_PAID_CUSTOMERS,
-                restaurant.getServedCount(),
-                restaurant.getUnhappyDepartures(),
-                Money.format(restaurant.getRevenueCents()),
-                Money.format(Restaurant.TARGET_REVENUE_CENTS),
-                formatAverage(restaurant),
-                Restaurant.TARGET_AVERAGE_SATISFACTION,
-                GameController.MAX_TURNS,
-                won ? "VICTORY" : "DEFEAT"));
+        System.out.println();
+        System.out.println("========== Final result: "
+                + (won ? "VICTORY" : "DEFEAT") + " ==========");
+        System.out.println("Paid customers: " + restaurant.getStats().getPaidCount()
+                + " (need " + targets.getPaidCustomers() + ")");
+        System.out.println("Served: " + restaurant.getStats().getServedCount());
+        System.out.println("Unhappy departures: " + restaurant.getStats().getUnhappyDepartures());
+        System.out.println("Revenue: " + Money.format(restaurant.getStats().getRevenueCents())
+                + " (need " + Money.format(targets.getRevenueCents()) + ")");
+        System.out.println("Average satisfaction of paid customers: "
+                + formatAverage(restaurant)
+                + " (need " + targets.getAverageSatisfaction() + ")");
+        System.out.println("Turns used: " + maxTurns);
+        System.out.println("Result: " + (won ? "VICTORY" : "DEFEAT"));
     }
 
     // Shows N/A until a customer has paid.
     private String formatAverage(Restaurant restaurant) {
-        if (restaurant.getPaidCount() == 0) {
+        if (restaurant.getStats().getPaidCount() == 0) {
             return "N/A";
         }
-        return String.format("%.1f", restaurant.getAverageSatisfaction());
+        return String.format("%.1f", restaurant.getStats().getAverageSatisfaction());
     }
 
     // Describes an order and its preparation progress.

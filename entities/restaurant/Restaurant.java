@@ -10,16 +10,12 @@ import entities.staff.Chef;
 import entities.staff.Waiter;
 
 import java.util.ArrayList;
+import java.util.List;
 import utility.IdSequence;
 
 // Stores tables, the waiting queue, customers, staff, the menu and statistics.
 // GameController decides when these change. This class does not read console input.
 public class Restaurant {
-
-    //victory conditions
-    public static final int TARGET_PAID_CUSTOMERS = 4;
-    public static final int TARGET_REVENUE_CENTS = 4500;
-    public static final int TARGET_AVERAGE_SATISFACTION = 60;
 
     //resturatn attibutes
     private final ArrayList<Table> tables;
@@ -32,30 +28,25 @@ public class Restaurant {
     private final Chef chef;
     private final Cashier cashier;
 
-    //game stats
-    private int revenueCents;
-    private int paidCount;
-    private int servedCount;
-    private int unhappyDepartures;
-    private int totalPaidSatisfaction;
+    //game stats and the victory check
+    private final GameStats stats;
 
-    // Initialise the base restaurant with 2 tables, 3 menu items and 3 staff members
-    public Restaurant() {
+    // Built from values passed in (see GameSettings), not from global constants.
+    public Restaurant(List<MenuItem> menu, int tableCount, VictoryTargets targets) {
         tables = new ArrayList<>();
-        tables.add(new Table(1));
-        tables.add(new Table(2));
+        for (int id = 1; id <= tableCount; id++) {
+            tables.add(new Table(id));
+        }
 
         waitingQueue = new ArrayList<>();
         customers = new ArrayList<>();
-
-        menu = new ArrayList<>();
-        menu.add(new MenuItem("Salad", 900, 1));
-        menu.add(new MenuItem("Pasta", 1800, 2));
-        menu.add(new MenuItem("Burger", 1500, 1));
+        this.menu = new ArrayList<>(menu);
 
         waiter = new Waiter(1, "Waiter", new IdSequence());
         chef = new Chef(2, "Chef");
         cashier = new Cashier(3, "Cashier");
+
+        stats = new GameStats(targets);
     }
 
     //called by gamecontroler for phase 1 of each step
@@ -106,24 +97,8 @@ public class Restaurant {
         return cashier;
     }
 
-    public int getRevenueCents() {
-        return revenueCents;
-    }
-
-    public int getPaidCount() {
-        return paidCount;
-    }
-
-    public int getServedCount() {
-        return servedCount;
-    }
-
-    public int getUnhappyDepartures() {
-        return unhappyDepartures;
-    }
-
-    public int getTotalPaidSatisfaction() {
-        return totalPaidSatisfaction;
+    public GameStats getStats() {
+        return stats;
     }
 
     // Return the first available table, or null if all are occupied
@@ -203,18 +178,16 @@ public class Restaurant {
             throw new IllegalStateException("Only a paid order adds revenue.");
         }
 
-        revenueCents += order.getBillCents();
-        paidCount++;
-        totalPaidSatisfaction += customer.getSatisfaction();
+        stats.recordPayment(order.getBillCents(), customer.getSatisfaction());
     }
 
     //counter methods
     public void recordService() {
-        servedCount++;
+        stats.recordService();
     }
 
     public void recordAbandonment() {
-        unhappyDepartures++;
+        stats.recordAbandonment();
     }
 
     // Called by GameController after seating or abandonment
@@ -229,22 +202,9 @@ public class Restaurant {
         }
     }
 
-    // Calculates average satisfaction of paid customers
-    // Used for game statistics and victory checks
-    public double getAverageSatisfaction() {
-        if (paidCount == 0) {
-            throw new IllegalStateException("No customer has paid yet.");
-        }
-        return (double) totalPaidSatisfaction / paidCount;
-    }
-
     // Called by GameController after turn 18
     // Checks whether all three victory conditions are met
     public boolean hasWon() {
-        if (paidCount < TARGET_PAID_CUSTOMERS
-                || revenueCents < TARGET_REVENUE_CENTS) {
-            return false;
-        }
-        return getAverageSatisfaction() >= TARGET_AVERAGE_SATISFACTION;
+        return stats.hasMetTargets();
     }
 }

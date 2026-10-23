@@ -1,92 +1,77 @@
 package control;
 
 import boundary.GameCLI;
-import entities.customer.CriticCustomer;
+import config.GameSettings;
 import entities.customer.Customer;
 import entities.customer.CustomerStatus;
+import entities.customer.CustomerType;
 import entities.customer.Order;
 import entities.customer.OrderStatus;
-import entities.customer.RegularCustomer;
-import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import entities.staff.Cashier;
 import java.util.ArrayList;
+import java.util.Objects;
 import utility.GameRuleException;
+import utility.IdSequence;
 import utility.Money;
 
-// Coordinates the 18 turns. Specific objects apply their own state changes.
+// Coordinates the turns. Specific objects apply their own state changes.
 public class GameController {
-    public static final int MAX_TURNS = 18;
-    private static final int[] ARRIVAL_TURNS = {1, 4, 7, 10, 13, 16};
 
     private static final int WAITER_WAIT = 0;
     private static final int WAITER_SEAT = 1;
     private static final int WAITER_ORDER = 2;
     private static final int WAITER_SERVE = 3;
 
+    private final GameSettings settings;
     private final Restaurant restaurant;
     private final GameCLI cli;
+    private final IdSequence customerIds;
     private int currentTurn;
-    private int nextCustomerId;
 
-    public GameController(Restaurant restaurant, GameCLI cli) {
-        if (restaurant == null) {
-            throw new IllegalArgumentException("Restaurant cannot be null.");
-        }
-        if (cli == null) {
-            throw new IllegalArgumentException("Game CLI cannot be null.");
-        }
-
-        this.restaurant = restaurant;
-        this.cli = cli;
-        nextCustomerId = 1;
+    // The restaurant is built from the same settings, so the two always match.
+    public GameController(GameSettings settings, GameCLI cli) {
+        this.settings = Objects.requireNonNull(settings, "Settings cannot be null.");
+        this.cli = Objects.requireNonNull(cli, "Game CLI cannot be null.");
+        restaurant = settings.createRestaurant();
+        customerIds = new IdSequence();
     }
 
-    // Runs the 18 turns, then displays the final result.
+    // Runs every turn, then displays the final result.
     public void startGame() {
-        cli.displayWelcome(restaurant);
-        for (currentTurn = 1; currentTurn <= MAX_TURNS; currentTurn++) {
+        int maxTurns = settings.getMaxTurns();
+        cli.displayWelcome(restaurant, maxTurns);
+        for (currentTurn = 1; currentTurn <= maxTurns; currentTurn++) {
             playTurn();
         }
-        cli.displayFinalResults(restaurant);
+        cli.displayFinalResults(restaurant, maxTurns);
     }
 
     // Processes arrivals, manager choices, kitchen work, eating and payment.
     // Then decreases satisfaction and displays the end-of-turn result.
     private void playTurn() {
         processArrivals();
-        cli.displayGameState(restaurant, currentTurn);
+        cli.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
         processManagerChoices();
         processChefChoices();
         processEatingAndPayment();
         processSatisfactionAndAbandonment();
-        cli.displayTurnResults(restaurant, currentTurn);
+        cli.displayTurnResults(restaurant, currentTurn, settings.getMaxTurns());
     }
 
-    // One scheduled customer on turns 1, 4, 7, 10, 13 and 16.
-    // Turn 4 is a VIP and turn 10 is a critic. The others are regular.
+    // The settings say who arrives on each turn; CustomerType creates the right subclass.
     private void processArrivals() {
-        for (int i = 0; i < ARRIVAL_TURNS.length; i++) {
-            if (ARRIVAL_TURNS[i] != currentTurn) {
-                continue;
-            }
+        settings.arrivalOn(currentTurn).ifPresent(this::admit);
+    }
 
-            Customer customer;
-            if (currentTurn == 4) {
-                customer = new VIPCustomer(nextCustomerId, "Customer " + nextCustomerId);
-            } else if (currentTurn == 10) {
-                customer = new CriticCustomer(nextCustomerId, "Customer " + nextCustomerId);
-            } else {
-                customer = new RegularCustomer(nextCustomerId, "Customer " + nextCustomerId);
-            }
-
-            restaurant.addCustomer(customer);
-            nextCustomerId++;
-            cli.displayMessage(customer.getName()
-                    + " arrived and joined the waiting queue.");
-        }
+    private void admit(CustomerType type) {
+        int id = customerIds.next();
+        Customer customer = type.create(id, "Customer " + id);
+        restaurant.addCustomer(customer);
+        cli.displayMessage(customer.getName()
+                + " arrived and joined the waiting queue.");
     }
 
     // Reads and performs one waiter task before the chef is asked.

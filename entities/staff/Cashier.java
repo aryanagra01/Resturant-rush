@@ -2,71 +2,52 @@ package entities.staff;
 
 import entities.customer.Customer;
 import entities.customer.CustomerStatus;
-import entities.customer.Order;
-import entities.customer.OrderStatus;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import utility.Require;
 
-//processes one payment per turn
-//gamecontroller chooses the oldest eligible customer
-//a failed payment does not update lastPaymentTurn, hence can process someone else
-
+/** Processes at most one payment per turn (see Staff), oldest first. */
 public class Cashier extends Staff {
-    private static final int NOT_PAID = -1;
-
-    private int lastPaymentTurn;
+    /** Served earliest first; ties broken by customer id. */
+    private static final Comparator<Customer> OLDEST_FIRST =
+            Comparator.comparingInt(Customer::getServedTurn)
+                    .thenComparingInt(Customer::getCustomerId);
 
     public Cashier(int staffId, String name) {
         super(staffId, name);
-        lastPaymentTurn = NOT_PAID;
     }
 
-    //called by gamecontroller
-    //customer must already have been ready to pay before this turn
+    /** Picks who should pay next from a non-empty list of customers allowed to pay. */
+    public Customer chooseNextPayer(List<Customer> candidates) {
+        Objects.requireNonNull(candidates, "Candidates cannot be null.");
+        return candidates.stream().min(OLDEST_FIRST)
+                .orElseThrow(() -> new IllegalStateException("No customer is ready to pay."));
+    }
+
+    /**
+     * Charges the customer (customer and order become PAID), records the revenue and
+     * frees their table.
+     *
+     * @throws utility.GameRuleException if the customer is not allowed to pay this turn
+     */
     public void processPayment(Customer customer, Restaurant restaurant, int turn) {
-        if (turn < 1) {
-            throw new IllegalArgumentException("Turn must be at least 1.");
-        }
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer cannot be null.");
-        }
-        if (restaurant == null) {
-            throw new IllegalArgumentException("Restaurant cannot be null.");
-        }
-        if (!canProcessPayment(turn)) {
-            throw new IllegalStateException(
-                    "Cashier has already processed a payment this turn.");
-        }
-        if (customer.getStatus() != CustomerStatus.READY_TO_PAY) {
-            throw new IllegalStateException(
+        Objects.requireNonNull(customer, "Customer cannot be null.");
+        Objects.requireNonNull(restaurant, "Restaurant cannot be null.");
+
+        performTask(turn, () -> {
+            Require.rule(customer.getStatus() == CustomerStatus.READY_TO_PAY,
                     "Only a customer who is ready to pay can pay.");
-        }
-
-        //eating finishes on servedTurn + 1(ready to pay), so the earliest payment is servedTurn + 2
-        if (turn < customer.getServedTurn() + 2) {
-            throw new IllegalStateException(
+            Require.rule(customer.canPayOn(turn),
                     "Customer cannot pay on the turn they became ready to pay.");
-        }
+            Table table = restaurant.findTableByCustomer(customer);
+            Require.state(table != null, "Customer is not seated at a table.");
 
-        Order order = customer.getOrder().orElse(null);
-        if (order == null || order.getStatus() != OrderStatus.SERVED) {
-            throw new IllegalStateException("Only a served order can be paid.");
-        }
-
-        Table table = restaurant.findTableByCustomer(customer);
-        if (table == null || table.getCustomer() != customer) {
-            throw new IllegalStateException("Customer is not seated at a table.");
-        }
-
-        //if all good, then cusomter and order become paid, revenue recorded by resrutant, table is releaed and turn is updated of cashier last movement
-        customer.pay();
-        restaurant.recordPayment(customer);
-        table.release();
-        lastPaymentTurn = turn;
-    }
-
-    //true when this turn is valid and no payment has been taken yet
-    public boolean canProcessPayment(int turn) {
-        return turn >= 1 && lastPaymentTurn != turn;
+            customer.pay();
+            restaurant.recordPayment(customer);
+            table.release();
+        });
     }
 }

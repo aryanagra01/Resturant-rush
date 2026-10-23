@@ -11,6 +11,7 @@ import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
+import entities.staff.Cashier;
 import java.util.ArrayList;
 import utility.GameRuleException;
 
@@ -142,24 +143,10 @@ public class GameController {
     }
 
     // Handles eating and payment in the correct turn order.
-    // Customers who finish eating this turn can only pay next turn.
+    // Customers who finish eating this turn can only pay next turn (see canPayOn).
     private void processEatingAndPayment() {
-        ArrayList<Customer> readyCustomers = getReadyToPayCustomers();
         processEating();
-        processPayments(readyCustomers);
-    }
-
-    // Finds customers who were already ready to pay.
-    private ArrayList<Customer> getReadyToPayCustomers() {
-        ArrayList<Customer> readyCustomers = new ArrayList<>();
-        ArrayList<Customer> customers = restaurant.getCustomers();
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            if (customer.getStatus() == CustomerStatus.READY_TO_PAY) {
-                readyCustomers.add(customer);
-            }
-        }
-        return readyCustomers;
+        processPayments();
     }
 
     // Customers served in an earlier turn finish eating.
@@ -167,8 +154,7 @@ public class GameController {
         ArrayList<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
-            if (customer.getStatus() == CustomerStatus.EATING
-                    && currentTurn > customer.getServedTurn()) {
+            if (customer.isDoneEating(currentTurn)) {
                 customer.finishEating(currentTurn);
                 cli.displayMessage(customer.getName()
                         + " finished eating and is ready to pay.");
@@ -176,33 +162,27 @@ public class GameController {
         }
     }
 
-    // Cashier processes at most one payment, oldest first.
-    // If payment fails, the next oldest eligible customer is attempted.
-    private void processPayments(ArrayList<Customer> readyCustomers) {
-        while (!readyCustomers.isEmpty()
-                && restaurant.getCashier().canProcessPayment(currentTurn)) {
-            Customer oldestCustomer = readyCustomers.get(0);
-            for (int i = 1; i < readyCustomers.size(); i++) {
-                Customer customer = readyCustomers.get(i);
-                if (customer.getServedTurn() < oldestCustomer.getServedTurn()
-                        || (customer.getServedTurn() == oldestCustomer.getServedTurn()
-                        && customer.getCustomerId() < oldestCustomer.getCustomerId())) {
-                    oldestCustomer = customer;
-                }
+    // The Cashier takes at most one payment, oldest first.
+    // If a payment is refused, the next oldest customer is tried.
+    private void processPayments() {
+        Cashier cashier = restaurant.getCashier();
+        ArrayList<Customer> candidates = new ArrayList<>();
+        for (Customer customer : restaurant.getCustomers()) {
+            if (customer.canPayOn(currentTurn)) {
+                candidates.add(customer);
             }
+        }
 
+        while (!candidates.isEmpty() && cashier.canAct(currentTurn)) {
+            Customer payer = cashier.chooseNextPayer(candidates);
             try {
-                int satisfaction = oldestCustomer.getSatisfaction();
-                int billCents = oldestCustomer.getOrder().orElse(null).getBillCents();
-                restaurant.getCashier().processPayment(
-                        oldestCustomer, restaurant, currentTurn);
-                cli.displayMessage(oldestCustomer.getName() + " paid "
-                        + GameCLI.formatMoney(billCents)
-                        + ". Satisfaction recorded: " + satisfaction + ".");
-                break;
-            } catch (IllegalArgumentException | IllegalStateException | GameRuleException ex) {
+                cashier.processPayment(payer, restaurant, currentTurn);
+                cli.displayMessage(payer.getName() + " paid "
+                        + GameCLI.formatMoney(payer.getOrder().orElseThrow().getBillCents())
+                        + ". Satisfaction recorded: " + payer.getSatisfaction() + ".");
+            } catch (GameRuleException ex) {
                 cli.displayError(ex.getMessage());
-                readyCustomers.remove(oldestCustomer);
+                candidates.remove(payer);
             }
         }
     }

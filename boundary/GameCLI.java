@@ -11,6 +11,7 @@ import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import entities.restaurant.VictoryTargets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import utility.Money;
 
@@ -49,7 +50,7 @@ public class GameCLI {
         System.out.println();
         System.out.println("Menu:");
 
-        ArrayList<MenuItem> menu = restaurant.getMenu();
+        List<MenuItem> menu = restaurant.getMenu();
         for (int i = 0; i < menu.size(); i++) {
             MenuItem item = menu.get(i);
             System.out.println("- " + i + ". " + item.getName()
@@ -87,7 +88,7 @@ public class GameCLI {
     private void displayWaitingQueue(Restaurant restaurant) {
         System.out.println();
         System.out.println("Waiting queue:");
-        ArrayList<Customer> waiting = restaurant.getWaitingCustomers();
+        List<Customer> waiting = restaurant.getWaitingCustomers();
         if (waiting.isEmpty()) {
             System.out.println("  (empty)");
         } else {
@@ -104,13 +105,13 @@ public class GameCLI {
     private void displayTables(Restaurant restaurant) {
         System.out.println();
         System.out.println("Tables:");
-        ArrayList<Table> tables = restaurant.getTables();
+        List<Table> tables = restaurant.getTables();
         for (int i = 0; i < tables.size(); i++) {
             Table table = tables.get(i);
             if (table.isAvailable()) {
                 System.out.println("  Table " + table.getTableId() + ": Free");
             } else {
-                Customer seated = table.getCustomer();
+                Customer seated = table.getCustomer().orElseThrow();
                 System.out.println("  Table " + table.getTableId() + ": "
                         + seated.getName()
                         + " (" + getCustomerType(seated) + ")"
@@ -125,7 +126,7 @@ public class GameCLI {
     private void displayCustomers(Restaurant restaurant) {
         System.out.println();
         System.out.println("Customers:");
-        ArrayList<Customer> customers = restaurant.getCustomers();
+        List<Customer> customers = restaurant.getCustomers();
         if (customers.isEmpty()) {
             System.out.println("  (none)");
         } else {
@@ -271,14 +272,14 @@ public class GameCLI {
     // Describes waiter tasks based on the current restaurant state.
     private String describeWaiterTasks(Restaurant restaurant) {
         StringBuilder text = new StringBuilder("Wait");
-        if (restaurant.getAvailableTable() != null) {
-            ArrayList<Customer> waiting = restaurant.getWaitingCustomers();
+        if (restaurant.findAvailableTable().isPresent()) {
+            List<Customer> waiting = restaurant.getWaitingCustomers();
             for (int i = 0; i < waiting.size(); i++) {
                 text.append("; seat ").append(waiting.get(i).getName());
             }
         }
 
-        ArrayList<Customer> customers = restaurant.getCustomers();
+        List<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
             Order order = customer.getOrder().orElse(null);
@@ -296,7 +297,7 @@ public class GameCLI {
     // Describes orders that the chef can prepare.
     private String describeChefTasks(Restaurant restaurant) {
         StringBuilder text = new StringBuilder("Wait");
-        ArrayList<Customer> customers = restaurant.getCustomers();
+        List<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Order order = customers.get(i).getOrder().orElse(null);
             if (order == null) {

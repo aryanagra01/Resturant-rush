@@ -5,183 +5,155 @@ import entities.customer.CustomerStatus;
 import entities.customer.Order;
 import entities.customer.OrderStatus;
 import entities.menu.MenuItem;
-import entities.staff.Cashier;
-import entities.staff.Chef;
-import entities.staff.Waiter;
-
 import java.util.ArrayList;
 import java.util.List;
-import utility.IdSequence;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
+import utility.Require;
 
-// Stores tables, the waiting queue, customers, staff, the menu and statistics.
-// GameController decides when these change. This class does not read console input.
+/**
+ * The place: tables, waiting queue, customers, menu and statistics.
+ *
+ * <p>Built from values passed in (menu, table count, targets), not from global
+ * settings, so a test or another difficulty can build a different restaurant.
+ * Staff are not part of the restaurant; GameController owns them. Getters return
+ * read-only copies, so callers cannot change the lists.
+ */
 public class Restaurant {
-
-    //resturatn attibutes
-    private final ArrayList<Table> tables;
-    private final ArrayList<Customer> waitingQueue;
-    private final ArrayList<Customer> customers;
-    private final ArrayList<MenuItem> menu;
-
-    //staff
-    private final Waiter waiter;
-    private final Chef chef;
-    private final Cashier cashier;
-
-    //game stats and the victory check
+    private final List<Table> tables;
+    private final List<Customer> waitingQueue;
+    private final List<Customer> customers;
+    private final List<MenuItem> menu;
     private final GameStats stats;
 
-    // Built from values passed in (see GameSettings), not from global constants.
     public Restaurant(List<MenuItem> menu, int tableCount, VictoryTargets targets) {
+        Objects.requireNonNull(menu, "Menu cannot be null.");
+        Require.notNegative(tableCount, "Table count");
+
+        this.menu = List.copyOf(menu);
         tables = new ArrayList<>();
         for (int id = 1; id <= tableCount; id++) {
             tables.add(new Table(id));
         }
-
         waitingQueue = new ArrayList<>();
         customers = new ArrayList<>();
-        this.menu = new ArrayList<>(menu);
-
-        waiter = new Waiter(1, "Waiter", new IdSequence());
-        chef = new Chef(2, "Chef");
-        cashier = new Cashier(3, "Cashier");
-
         stats = new GameStats(targets);
     }
 
-    //called by gamecontroler for phase 1 of each step
-    // Rejects duplicate customer IDs
-    public void addCustomer(Customer customer) {
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer cannot be null.");
-        }
-        if (customer.getStatus() != CustomerStatus.WAITING) {
-            throw new IllegalStateException(
-                    "Only a waiting customer can join the queue.");
-        }
-        if (findCustomer(customer.getCustomerId()) != null) {
-            throw new IllegalStateException(
-                    "A customer with this id is already in the restaurant.");
-        }
+    // ---------- getters ----------
 
-        customers.add(customer);
-        waitingQueue.add(customer);
+    /** Customers waiting for a table, in arrival order. */
+    public List<Customer> getWaitingCustomers() {
+        return List.copyOf(waitingQueue);
     }
 
-    //getters
-    public ArrayList<Customer> getWaitingCustomers() {
-        return new ArrayList<>(waitingQueue);
+    /** Every customer who has arrived, in arrival order (including paid and departed). */
+    public List<Customer> getCustomers() {
+        return List.copyOf(customers);
     }
 
-    public ArrayList<Customer> getCustomers() {
-        return new ArrayList<>(customers);
+    public List<Table> getTables() {
+        return List.copyOf(tables);
     }
 
-    public ArrayList<Table> getTables() {
-        return new ArrayList<>(tables);
-    }
-
-    public ArrayList<MenuItem> getMenu() {
-        return new ArrayList<>(menu);
-    }
-
-    public Waiter getWaiter() {
-        return waiter;
-    }
-
-    public Chef getChef() {
-        return chef;
-    }
-
-    public Cashier getCashier() {
-        return cashier;
+    public List<MenuItem> getMenu() {
+        return menu;
     }
 
     public GameStats getStats() {
         return stats;
     }
 
-    // Return the first available table, or null if all are occupied
-    public Table getAvailableTable() {
-        for (int i = 0; i < tables.size(); i++) {
-            Table table = tables.get(i);
-            if (table.isAvailable()) {
-                return table;
-            }
-        }
-        return null;
+    // ---------- searching ----------
+
+    private static <T> Optional<T> findFirst(List<T> items, Predicate<T> condition) {
+        return items.stream().filter(condition).findFirst();
     }
 
-    // Find a customer by ID
-    public Customer findCustomer(int id) {
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            if (customer.getCustomerId() == id) {
-                return customer;
+    /**
+     * All customers (in arrival order) that match the condition.
+     * Returns a new list the caller may change.
+     */
+    public List<Customer> findCustomers(Predicate<Customer> condition) {
+        List<Customer> matches = new ArrayList<>();
+        for (Customer customer : customers) {
+            if (condition.test(customer)) {
+                matches.add(customer);
             }
         }
-        return null;
+        return matches;
     }
 
-    // Find a table by ID
-    public Table findTable(int id) {
-        for (int i = 0; i < tables.size(); i++) {
-            Table table = tables.get(i);
-            if (table.getTableId() == id) {
-                return table;
-            }
-        }
-        return null;
+    public Optional<Customer> findCustomer(int customerId) {
+        return findFirst(customers, c -> c.getCustomerId() == customerId);
     }
 
-    // Find the table occupied by a specific customer
-    public Table findTableByCustomer(Customer customer) {
-        if (customer == null) {
-            return null;
-        }
-
-        for (int i = 0; i < tables.size(); i++) {
-            Table table = tables.get(i);
-            //This checks whether both references point to the exact same Customer object.
-            if (table.getCustomer() == customer) {
-                return table;
-            }
-        }
-        return null;
+    public Optional<Order> findOrder(int orderId) {
+        return customers.stream()
+                .flatMap(c -> c.getOrder().stream())
+                .filter(order -> order.getOrderId() == orderId)
+                .findFirst();
     }
 
-    // The customer chooses the item. Rejects a null customer and an empty menu.
+    /** The first free table, if any. */
+    public Optional<Table> findAvailableTable() {
+        return findFirst(tables, Table::isAvailable);
+    }
+
+    public Optional<Table> findTableByCustomer(Customer customer) {
+        Objects.requireNonNull(customer, "Customer cannot be null.");
+        return findFirst(tables, t -> t.isOccupiedBy(customer));
+    }
+
+    /** Customers whose order the Chef can still work on. */
+    public List<Customer> getCustomersWithOrdersToPrepare() {
+        return findCustomers(Customer::hasOrderToPrepare);
+    }
+
+    // ---------- changes ----------
+
+    /** Adds a newly arrived customer to the restaurant and the waiting queue. */
+    public void addCustomer(Customer customer) {
+        Objects.requireNonNull(customer, "Customer cannot be null.");
+        Require.state(customer.canBeSeated(), "Only a waiting customer can join the queue.");
+        Require.state(findCustomer(customer.getCustomerId()).isEmpty(),
+                "A customer with this id is already in the restaurant.");
+
+        customers.add(customer);
+        waitingQueue.add(customer);
+    }
+
+    public void removeFromWaitingQueue(Customer customer) {
+        Objects.requireNonNull(customer, "Customer cannot be null.");
+        Require.state(waitingQueue.remove(customer), "Customer is not in the waiting queue.");
+    }
+
+    /** Frees the customer's table and returns it, or empty if they had none. */
+    public Optional<Table> releaseTableOf(Customer customer) {
+        Optional<Table> table = findTableByCustomer(customer);
+        table.ifPresent(Table::release);
+        return table;
+    }
+
+    /** The customer chooses (dynamic binding: each customer type has its own rule). */
     public MenuItem selectMenuItem(Customer customer) {
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer cannot be null.");
-        }
-        if (menu.isEmpty()) {
-            throw new IllegalStateException("The menu is empty.");
-        }
-
+        Objects.requireNonNull(customer, "Customer cannot be null.");
         return customer.chooseMenuItem(menu);
     }
 
-    // Called by Cashier after a successful payment
-    // Record a successful payment and update the restaurant's statistics.
+    /** Adds a completed payment to revenue. Called once, right after the Cashier charges. */
     public void recordPayment(Customer customer) {
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer cannot be null.");
-        }
-        if (customer.getStatus() != CustomerStatus.PAID) {
-            throw new IllegalStateException(
-                    "Only a paid customer can be added to revenue.");
-        }
-
-        Order order = customer.getOrder().orElse(null);
-        if (order == null || order.getStatus() != OrderStatus.PAID) {
-            throw new IllegalStateException("Only a paid order adds revenue.");
-        }
+        Objects.requireNonNull(customer, "Customer cannot be null.");
+        Require.state(customer.getStatus() == CustomerStatus.PAID,
+                "Only a paid customer can be added to revenue.");
+        Order order = customer.getOrder()
+                .filter(o -> o.getStatus() == OrderStatus.PAID)
+                .orElseThrow(() -> new IllegalStateException("Only a paid order adds revenue."));
 
         stats.recordPayment(order.getBillCents(), customer.getSatisfaction());
     }
 
-    //counter methods
     public void recordService() {
         stats.recordService();
     }
@@ -190,20 +162,6 @@ public class Restaurant {
         stats.recordAbandonment();
     }
 
-    // Called by GameController after seating or abandonment
-    // Removes the customer from the waiting queue
-    public void removeFromWaitingQueue(Customer customer) {
-        if (customer == null) {
-            throw new IllegalArgumentException("Customer cannot be null.");
-        }
-        if (!waitingQueue.remove(customer)) {
-            throw new IllegalStateException(
-                    "Customer is not in the waiting queue.");
-        }
-    }
-
-    // Called by GameController after turn 18
-    // Checks whether all three victory conditions are met
     public boolean hasWon() {
         return stats.hasMetTargets();
     }

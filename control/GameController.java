@@ -11,7 +11,10 @@ import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import entities.staff.Cashier;
+import entities.staff.Chef;
+import entities.staff.Waiter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import utility.GameRuleException;
 import utility.IdSequence;
@@ -28,6 +31,9 @@ public class GameController {
     private final GameSettings settings;
     private final Restaurant restaurant;
     private final GameCLI cli;
+    private final Waiter waiter;
+    private final Chef chef;
+    private final Cashier cashier;
     private final IdSequence customerIds;
     private int currentTurn;
 
@@ -36,6 +42,11 @@ public class GameController {
         this.settings = Objects.requireNonNull(settings, "Settings cannot be null.");
         this.cli = Objects.requireNonNull(cli, "Game CLI cannot be null.");
         restaurant = settings.createRestaurant();
+
+        // A fixed staff of three, as the base setting requires.
+        waiter = new Waiter(1, "Waiter", new IdSequence());
+        chef = new Chef(2, "Chef");
+        cashier = new Cashier(3, "Cashier");
         customerIds = new IdSequence();
     }
 
@@ -106,14 +117,14 @@ public class GameController {
                 return;
             }
 
-            Order order = findOrder(choice);
+            Order order = restaurant.findOrder(choice).orElse(null);
             if (order == null) {
                 cli.displayError("No order has id " + choice + ".");
                 continue;
             }
 
             try {
-                restaurant.getChef().prepareOrder(order, currentTurn);
+                chef.prepareOrder(order, currentTurn);
                 String readyNote = order.isReady() ? " The order is ready." : "";
                 cli.displayMessage("The chef prepared one unit of "
                         + order.getMenuItem().getName()
@@ -137,7 +148,7 @@ public class GameController {
 
     // Customers served in an earlier turn finish eating.
     private void processEating() {
-        ArrayList<Customer> customers = restaurant.getCustomers();
+        List<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
             if (customer.isDoneEating(currentTurn)) {
@@ -151,7 +162,6 @@ public class GameController {
     // The Cashier takes at most one payment, oldest first.
     // If a payment is refused, the next oldest customer is tried.
     private void processPayments() {
-        Cashier cashier = restaurant.getCashier();
         ArrayList<Customer> candidates = new ArrayList<>();
         for (Customer customer : restaurant.getCustomers()) {
             if (customer.canPayOn(currentTurn)) {
@@ -174,11 +184,9 @@ public class GameController {
     // revenue is recorded in the same step, so one can never happen without the other.
     private void checkout(Customer payer) {
         // A ready-to-pay customer always has a table; if not, it is a bug.
-        Table table = restaurant.findTableByCustomer(payer);
-        if (table == null) {
-            throw new IllegalStateException(payer.getName() + " is not at a table.");
-        }
-        restaurant.getCashier().processPayment(payer, table, currentTurn);
+        Table table = restaurant.findTableByCustomer(payer).orElseThrow(
+                () -> new IllegalStateException(payer.getName() + " is not at a table."));
+        cashier.processPayment(payer, table, currentTurn);
         restaurant.recordPayment(payer);
         cli.displayMessage(payer.getName() + " paid "
                 + Money.format(payer.getOrder().orElseThrow().getBillCents())
@@ -187,7 +195,7 @@ public class GameController {
 
     // Waiting and seated customers lose satisfaction. At 0 they leave.
     private void processSatisfactionAndAbandonment() {
-        ArrayList<Customer> customers = restaurant.getCustomers();
+        List<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
             if (customer.getStatus() != CustomerStatus.WAITING
@@ -223,10 +231,8 @@ public class GameController {
             return;
         }
 
-        Customer customer = restaurant.findCustomer(customerId);
-        if (customer == null) {
-            throw new IllegalArgumentException("No customer has id " + customerId + ".");
-        }
+        Customer customer = restaurant.findCustomer(customerId).orElseThrow(
+                () -> new GameRuleException("No customer has id " + customerId + "."));
 
         if (action == WAITER_SEAT) {
             seatCustomer(customer);
@@ -240,11 +246,9 @@ public class GameController {
     //called by exectute watier choice, 
     // find avialble table, seat cuomser and remove them from waiting queue
     private void seatCustomer(Customer customer) {
-        Table table = restaurant.getAvailableTable();
-        if (table == null) {
-            throw new IllegalStateException("No table is available.");
-        }
-        restaurant.getWaiter().seatCustomer(customer, table, currentTurn);
+        Table table = restaurant.findAvailableTable().orElseThrow(
+                () -> new GameRuleException("No table is available."));
+        waiter.seatCustomer(customer, table, currentTurn);
         restaurant.removeFromWaitingQueue(customer);
         cli.displayMessage("The waiter seated " + customer.getName()
                 + " at table " + table.getTableId() + ".");
@@ -254,7 +258,7 @@ public class GameController {
     //determine the customer's menu choic (detemirnstic thing) e and ask the waiter to create an order.
     private void takeCustomerOrder(Customer customer) {
         MenuItem item = restaurant.selectMenuItem(customer);
-        Order order = restaurant.getWaiter().takeOrder(customer, item, currentTurn);
+        Order order = waiter.takeOrder(customer, item, currentTurn);
         cli.displayMessage(customer.getName() + " ordered " + item.getName()
                 + " (" + Money.format(order.getBillCents())
                 + ", " + item.getPreparationUnits() + " preparation unit"
@@ -264,7 +268,7 @@ public class GameController {
 
     //serve a ready order and cusomter is then served
     private void serveCustomer(Customer customer) {
-        restaurant.getWaiter().serveOrder(customer, currentTurn);
+        waiter.serveOrder(customer, currentTurn);
         restaurant.recordService();
         cli.displayMessage("The waiter served " + customer.getName()
                 + ". The customer is now eating.");
@@ -283,11 +287,9 @@ public class GameController {
         if (customer.getStatus() == CustomerStatus.WAITING) {
             restaurant.removeFromWaitingQueue(customer);
         } else if (customer.getStatus() == CustomerStatus.SEATED) {
-            Table table = restaurant.findTableByCustomer(customer);
+            Table table = restaurant.releaseTableOf(customer).orElse(null);
             if (table != null) {
-                int tableId = table.getTableId();
-                table.release();
-                tableNote = " Table " + tableId + " is free.";
+                tableNote = " Table " + table.getTableId() + " is free.";
             }
         }
 
@@ -309,7 +311,7 @@ public class GameController {
     private ArrayList<String> chefActionLines() {
         ArrayList<String> lines = new ArrayList<>();
         lines.add("0. Wait");
-        ArrayList<Customer> customers = restaurant.getCustomers();
+        List<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
             Order order = customer.getOrder().orElse(null);
@@ -327,19 +329,5 @@ public class GameController {
                     + order.getMenuItem().getPreparationUnits() + ")");
         }
         return lines;
-    }
-
-    // Finds an order using its ID.
-    // Returns null if no matching order exists.
-    private Order findOrder(int orderId) {
-        ArrayList<Customer> customers = restaurant.getCustomers();
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            Order order = customer.getOrder().orElse(null);
-            if (order != null && order.getOrderId() == orderId) {
-                return order;
-            }
-        }
-        return null;
     }
 }

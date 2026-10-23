@@ -1,11 +1,11 @@
 package entities.restaurant;
 
-import java.util.Objects;
 import entities.customer.Customer;
+import java.util.Objects;
+import java.util.Optional;
 import utility.Require;
 
-// One restaurant table and the customer sitting at it.
-// customer is null when the table is free.
+/** One restaurant table and the customer sitting at it, if any. */
 public class Table {
     private final int tableId;
     private Customer customer;
@@ -20,8 +20,9 @@ public class Table {
         return tableId;
     }
 
-    public Customer getCustomer() {
-        return customer;
+    /** The customer at this table, or empty when it is free. */
+    public Optional<Customer> getCustomer() {
+        return Optional.ofNullable(customer);
     }
 
     public boolean isAvailable() {
@@ -33,16 +34,22 @@ public class Table {
         return this.customer == customer && customer != null;
     }
 
-    // Called by the Waiter when seating a customer.
+    /** Called by the Waiter after checking the table is free. */
     public void occupy(Customer customer) {
         Objects.requireNonNull(customer, "Customer cannot be null.");
         Require.state(isAvailable(), "Table is already occupied.");
         this.customer = customer;
     }
 
-    // Called after payment or when the customer abandons.
+    /** Called after payment, or when the customer abandons. */
     public void release() {
         Require.state(!isAvailable(), "Table is already empty.");
         customer = null;
+    }
+
+    @Override
+    public String toString() {
+        return "Table[id=" + tableId + ", "
+                + (isAvailable() ? "free" : "customer=" + customer.getName()) + "]";
     }
 }

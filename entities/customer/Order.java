@@ -1,12 +1,17 @@
 package entities.customer;
 
-import java.util.Objects;
 import entities.menu.MenuItem;
+import java.util.Objects;
 import utility.Require;
 
-// Created by the Waiter when a customer orders.
-// The order owns its own status rules; staff only ask it to change.
-public class Order {
+/**
+ * One customer's order. Created by the Waiter.
+ *
+ * <p>The bill is locked when the order is taken. Order lives in the customer package
+ * because a customer owns their order: only {@link Customer} may serve, pay or cancel
+ * it (package-private methods). The Chef only calls {@link #prepareOneUnit()}.
+ */
+public class Order {    
     private final int orderId;
     private final MenuItem menuItem;
     private final int billCents;
@@ -44,6 +49,7 @@ public class Order {
         return status;
     }
 
+    /** The bill in cents, after any discount, locked when the order was taken. */
     public int getBillCents() {
         return billCents;
     }
@@ -64,10 +70,14 @@ public class Order {
         return status == OrderStatus.READY;
     }
 
-    // Called by the Chef. Becomes READY when the last unit is done.
+    /**
+     * Called by the Chef. Prepares one unit; the order becomes READY when the last
+     * unit is done.
+     *
+     * @throws utility.GameRuleException if the order is not placed or preparing
+     */
     public void prepareOneUnit() {
-        Require.rule(needsPreparation(),
-                "Only a placed or preparing order can be prepared.");
+        Require.rule(needsPreparation(), "Only a placed or preparing order can be prepared.");
 
         status = OrderStatus.PREPARING;
         preparedUnits++;
@@ -76,21 +86,29 @@ public class Order {
         }
     }
 
-    // Called by the Waiter.
-    public void serve() {
+    // Only Customer.receiveFood calls this.
+    void serve() {
         Require.status(status, OrderStatus.READY, "Order", "be served");
         status = OrderStatus.SERVED;
     }
 
-    // Called by the Cashier.
-    public void markPaid() {
+    // Only Customer.pay calls this.
+    void markPaid() {
         Require.status(status, OrderStatus.SERVED, "Order", "be paid");
         status = OrderStatus.PAID;
     }
 
-    // Called when the customer abandons the restaurant.
-    public void cancel() {
+    // Only Customer.cancelUnfinishedOrder calls this.
+    void cancel() {
         Require.state(isUnfinished(), "Only an unfinished order can be cancelled.");
         status = OrderStatus.CANCELLED;
+    }
+
+    @Override
+    public String toString() {
+        return "Order[id=" + orderId + ", item=" + menuItem.getName()
+                + ", status=" + status + ", units=" + preparedUnits + "/"
+                + menuItem.getPreparationUnits() + ", billCents=" + billCents
+                + ", placedTurn=" + placedTurn + "]";
     }
 }

@@ -59,8 +59,7 @@ public class Cashier extends Staff {
         }
 
         //if all good, then cusomter and order become paid, revenue recorded by resrutant, table is releaed and turn is updated of cashier last movement
-        customer.markPaid();
-        order.markPaid();
+        customer.pay();
         restaurant.recordPayment(customer);
         table.release();
         lastPaymentTurn = turn;

@@ -297,14 +297,7 @@ public class GameController {
 
         //check if order is not completed or paid and then sets boolean to cancel 
         Order order = customer.getOrder();
-        boolean cancelledOrder = false;
-        if (order != null
-                && (order.getStatus() == OrderStatus.PLACED
-                || order.getStatus() == OrderStatus.PREPARING
-                || order.getStatus() == OrderStatus.READY)) {
-            order.cancel();
-            cancelledOrder = true;
-        }
+        boolean cancelledOrder = customer.cancelUnfinishedOrder();
 
 
         //remove from waiting queue or the table

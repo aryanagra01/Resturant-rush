@@ -112,8 +112,7 @@ public class Waiter extends Staff {
                     "Customer can only be served a ready order.");
         }
 
-        order.serve();
-        customer.startEating(turn);
+        customer.receiveFood(turn);
         lastActionTurn = turn;
     }
 

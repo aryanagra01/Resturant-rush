@@ -1,5 +1,6 @@
 package entities.customer;
 
+import java.util.Objects;
 import entities.menu.MenuItem;
 import utility.Require;
 
@@ -15,7 +16,7 @@ public class Order {
 
     public Order(int orderId, MenuItem menuItem, int billCents, int placedTurn) {
         Require.notNegative(orderId, "Order ID");
-        Require.notNull(menuItem, "Menu item");
+        Objects.requireNonNull(menuItem, "Menu item cannot be null.");
         Require.notNegative(billCents, "Bill");
         Require.validTurn(placedTurn, "Placed turn");
 
@@ -65,7 +66,7 @@ public class Order {
 
     // Called by the Chef. Becomes READY when the last unit is done.
     public void prepareOneUnit() {
-        Require.state(needsPreparation(),
+        Require.rule(needsPreparation(),
                 "Only a placed or preparing order can be prepared.");
 
         status = OrderStatus.PREPARING;

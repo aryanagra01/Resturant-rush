@@ -2,7 +2,7 @@ package entities.menu;
 
 import utility.Require;
 
-// One dish on the menu. Immutable once created.
+/** One dish on the menu. Immutable once created. */
 public class MenuItem {
     private final String name;
     private final int priceCents;
@@ -25,11 +25,19 @@ public class MenuItem {
         return name;
     }
 
+    /** The menu price in cents, before any discount. */
     public int getPriceCents() {
         return priceCents;
     }
 
+    /** How many Chef turns this dish needs. */
     public int getPreparationUnits() {
         return preparationUnits;
+    }
+
+    @Override
+    public String toString() {
+        return "MenuItem[" + name + ", priceCents=" + priceCents
+                + ", units=" + preparationUnits + "]";
     }
 }

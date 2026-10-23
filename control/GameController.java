@@ -11,6 +11,7 @@ import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import java.util.ArrayList;
+import utility.GameRuleException;
 
 // Coordinates the 18 turns. Specific objects apply their own state changes.
 public class GameController {
@@ -99,7 +100,7 @@ public class GameController {
             try {
                 executeWaiterChoice(action, customerId);
                 return;
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (IllegalArgumentException | IllegalStateException | GameRuleException ex) {
                 cli.displayError(ex.getMessage());
             }
         }
@@ -133,7 +134,7 @@ public class GameController {
                         + order.getMenuItem().getPreparationUnits() + ")."
                         + readyNote);
                 return;
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (IllegalArgumentException | IllegalStateException | GameRuleException ex) {
                 cli.displayError(ex.getMessage());
             }
         }
@@ -198,7 +199,7 @@ public class GameController {
                         + GameCLI.formatMoney(billCents)
                         + ". Satisfaction recorded: " + satisfaction + ".");
                 break;
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (IllegalArgumentException | IllegalStateException | GameRuleException ex) {
                 cli.displayError(ex.getMessage());
                 readyCustomers.remove(oldestCustomer);
             }

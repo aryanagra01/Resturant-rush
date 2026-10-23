@@ -1,5 +1,6 @@
 package entities.restaurant;
 
+import java.util.Objects;
 import entities.customer.Customer;
 import utility.Require;
 
@@ -29,7 +30,7 @@ public class Table {
 
     // Called by the Waiter when seating a customer.
     public void occupy(Customer customer) {
-        Require.notNull(customer, "Customer");
+        Objects.requireNonNull(customer, "Customer cannot be null.");
         Require.state(isAvailable(), "Table is already occupied.");
         this.customer = customer;
     }

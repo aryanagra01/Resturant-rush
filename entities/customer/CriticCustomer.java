@@ -1,72 +1,49 @@
 package entities.customer;
 
 import entities.menu.MenuItem;
-import java.util.ArrayList;
+import java.util.List;
 
-//always orders pasta, loses satisfaction faster, and likes fast service
+/** Always orders Pasta, loses satisfaction faster, and rewards fast service. */
 public class CriticCustomer extends Customer {
-    //stops the fast-service reward from being applied twice
-    private boolean rewardApplied;
+    public static final int SATISFACTION_LOSS = 12;
+    public static final String PREFERRED_DISH = "Pasta";
+    public static final int FAST_SERVICE_TURNS = 2;
+    public static final int FAST_SERVICE_BONUS = 10;
 
     public CriticCustomer(int customerId, String name) {
         super(customerId, name);
     }
 
-    //override customer
-    public int getSatisfactionLoss() {
-        return 12;
+    @Override
+    public CustomerType getType() {
+        return CustomerType.CRITIC;
     }
 
-    //overriden method
-    public MenuItem chooseMenuItem(ArrayList<MenuItem> menu) {
-        if (menu == null) {
-            throw new IllegalArgumentException("Menu cannot be null.");
-        }
-        if (menu.isEmpty()) {
-            throw new IllegalStateException("The menu is empty.");
-        }
+    @Override
+    public int getSatisfactionLoss() {
+        return SATISFACTION_LOSS;
+    }
 
-        for (int i = 0; i < menu.size(); i++) {
-            MenuItem item = menu.get(i);
-            if (item.getName().equals("Pasta")) {
+    /**
+     * Always orders Pasta. The menu was already checked by chooseMenuItem.
+     *
+     * @throws IllegalStateException if the menu has no Pasta
+     */
+    @Override
+    protected MenuItem pickMenuItem(List<MenuItem> menu) {
+        for (MenuItem item : menu) {
+            if (item.getName().equals(PREFERRED_DISH)) {
                 return item;
             }
         }
-
-        throw new IllegalStateException("Pasta is not on the menu.");
+        throw new IllegalStateException(PREFERRED_DISH + " is not on the menu.");
     }
 
-    //called after Waiter.serveOrder, once the customer is already eating
-    public void onFoodServed(int placedTurn, int servedTurn) {
-        if (placedTurn < 1) {
-            throw new IllegalArgumentException("Placed turn must be at least 1.");
-        }
-        if (servedTurn < placedTurn) {
-            throw new IllegalArgumentException(
-                    "Served turn cannot be before the placed turn.");
-        }
-
-        Order order = getOrder();
-        if (getStatus() != CustomerStatus.EATING) {
-            throw new IllegalStateException(
-                    "Fast service reward applies only after the customer is served.");
-        }
-        if (order == null || order.getStatus() != OrderStatus.SERVED) {
-            throw new IllegalStateException(
-                    "Fast service reward applies only after the order is served.");
-        }
-        if (getServedTurn() != servedTurn) {
-            throw new IllegalStateException(
-                    "Served turn does not match this service.");
-        }
-        if (rewardApplied) {
-            throw new IllegalStateException(
-                    "Fast service reward has already been applied.");
-        }
-
-        rewardApplied = true;
-        if (servedTurn - placedTurn <= 2) {
-            increaseSatisfaction(10);
+    /** +10 satisfaction if served within 2 turns of ordering. Runs once, when served. */
+    @Override
+    protected void onFoodServed(int placedTurn, int servedTurn) {
+        if (servedTurn - placedTurn <= FAST_SERVICE_TURNS) {
+            increaseSatisfaction(FAST_SERVICE_BONUS);
         }
     }
 }

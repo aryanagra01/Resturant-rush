@@ -6,6 +6,7 @@ import entities.customer.Customer;
 import entities.customer.CustomerStatus;
 import entities.customer.Order;
 import entities.customer.OrderStatus;
+import entities.customer.RegularCustomer;
 import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
@@ -76,7 +77,7 @@ public class GameController {
             } else if (currentTurn == 10) {
                 customer = new CriticCustomer(nextCustomerId, "Customer " + nextCustomerId);
             } else {
-                customer = new Customer(nextCustomerId, "Customer " + nextCustomerId);
+                customer = new RegularCustomer(nextCustomerId, "Customer " + nextCustomerId);
             }
 
             restaurant.addCustomer(customer);

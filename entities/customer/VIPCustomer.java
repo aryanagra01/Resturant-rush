@@ -1,20 +1,27 @@
 package entities.customer;
 
-//loses satisfaction more slowly and pays 10% less
+/** Loses satisfaction more slowly and pays 10% less. */
 public class VIPCustomer extends Customer {
+    public static final int SATISFACTION_LOSS = 5;
+    public static final int DISCOUNT_PERCENT = 10;
 
     public VIPCustomer(int customerId, String name) {
         super(customerId, name);
     }
 
-    //overrides customer (polymoroshm)
-    public int getSatisfactionLoss() {
-        return 5;
+    @Override
+    public CustomerType getType() {
+        return CustomerType.VIP;
     }
 
-    //10% off, still in whole cents. negative prices are rejected by Customer
-    public int applyDiscount(int priceCents) {
-        int fullPrice = super.applyDiscount(priceCents);
-        return fullPrice - fullPrice / 10;
+    @Override
+    public int getSatisfactionLoss() {
+        return SATISFACTION_LOSS;
+    }
+
+    /** 10% off in whole cents. The price was already validated by calculateBill. */
+    @Override
+    protected int applyDiscount(int priceCents) {
+        return priceCents - priceCents * DISCOUNT_PERCENT / 100;
     }
 }

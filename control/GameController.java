@@ -23,11 +23,6 @@ import utility.Money;
 // Coordinates the turns. Specific objects apply their own state changes.
 public class GameController {
 
-    private static final int WAITER_WAIT = 0;
-    private static final int WAITER_SEAT = 1;
-    private static final int WAITER_ORDER = 2;
-    private static final int WAITER_SERVE = 3;
-
     private final GameSettings settings;
     private final Restaurant restaurant;
     private final GameCLI cli;
@@ -89,15 +84,15 @@ public class GameController {
     // If the action fails, the manager can choose again without losing the turn.
     private void processManagerChoices() {
         while (true) {
-            int action = readWaiterChoice();
-            int customerId = -1;
-
-            if (action != WAITER_WAIT) {
-                customerId = cli.readInt("Enter the customer id: ");
-            }
-
+            WaiterAction action = cli.readWaiterAction();
             try {
-                executeWaiterChoice(action, customerId);
+                Customer customer = null;
+                if (action.needsCustomer()) {
+                    int customerId = cli.readInt("Enter the customer id: ");
+                    customer = restaurant.findCustomer(customerId).orElseThrow(
+                            () -> new GameRuleException("No customer has id " + customerId + "."));
+                }
+                action.perform(this, customer);
                 return;
             } catch (IllegalArgumentException | IllegalStateException | GameRuleException ex) {
                 cli.displayError(ex.getMessage());
@@ -209,43 +204,14 @@ public class GameController {
         }
     }
 
-    // Displays the waiter actions and returns the selected choice by calling cli
-    // Keeps asking until the manager enters a valid number from 0 to 3.
-    private int readWaiterChoice() {
-        while (true) {
-            cli.displayWaiterActions();
-            int choice = cli.getWaiterChoice();
-            if (choice >= WAITER_WAIT && choice <= WAITER_SERVE) {
-                return choice;
-            }
-            cli.displayError(
-                    "Choose 0 to wait, 1 to seat, 2 to take an order, or 3 to serve.");
-        }
+    // Called by WaiterAction.WAIT.
+    void waiterWaits() {
+        cli.displayMessage("The waiter waits.");
     }
 
-    // Executes the selected waiter action on the chosen customer by finding them
-    // Throws an error if the customer does not exist or the action is invalid.
-    private void executeWaiterChoice(int action, int customerId) {
-        if (action == WAITER_WAIT) {
-            cli.displayMessage("The waiter waits.");
-            return;
-        }
-
-        Customer customer = restaurant.findCustomer(customerId).orElseThrow(
-                () -> new GameRuleException("No customer has id " + customerId + "."));
-
-        if (action == WAITER_SEAT) {
-            seatCustomer(customer);
-        } else if (action == WAITER_ORDER) {
-            takeCustomerOrder(customer);
-        } else if (action == WAITER_SERVE) {
-            serveCustomer(customer);
-        }
-    }
-
-    //called by exectute watier choice, 
+    // Called by WaiterAction.SEAT.
     // find avialble table, seat cuomser and remove them from waiting queue
-    private void seatCustomer(Customer customer) {
+    void seatCustomer(Customer customer) {
         Table table = restaurant.findAvailableTable().orElseThrow(
                 () -> new GameRuleException("No table is available."));
         waiter.seatCustomer(customer, table, currentTurn);
@@ -254,9 +220,9 @@ public class GameController {
                 + " at table " + table.getTableId() + ".");
     }
 
-    // called by exectute watier choice, 
+    // Called by WaiterAction.TAKE_ORDER.
     //determine the customer's menu choic (detemirnstic thing) e and ask the waiter to create an order.
-    private void takeCustomerOrder(Customer customer) {
+    void takeCustomerOrder(Customer customer) {
         MenuItem item = restaurant.selectMenuItem(customer);
         Order order = waiter.takeOrder(customer, item, currentTurn);
         cli.displayMessage(customer.getName() + " ordered " + item.getName()
@@ -266,8 +232,8 @@ public class GameController {
                 + "). Order id " + order.getOrderId() + ".");
     }
 
-    //serve a ready order and cusomter is then served
-    private void serveCustomer(Customer customer) {
+    // Called by WaiterAction.SERVE.
+    void serveCustomer(Customer customer) {
         waiter.serveOrder(customer, currentTurn);
         restaurant.recordService();
         cli.displayMessage("The waiter served " + customer.getName()

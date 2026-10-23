@@ -1,5 +1,6 @@
 package boundary;
 
+import control.WaiterAction;
 import entities.customer.CriticCustomer;
 import entities.customer.Customer;
 import entities.customer.CustomerStatus;
@@ -12,6 +13,7 @@ import entities.restaurant.Table;
 import entities.restaurant.VictoryTargets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 import utility.Money;
 
@@ -141,14 +143,21 @@ public class GameCLI {
         }
     }
 
-    // Displays the waiter's available action types.
-    public void displayWaiterActions() {
-        System.out.println();
-        System.out.println("Waiter actions:");
-        System.out.println("0. Wait");
-        System.out.println("1. Seat a waiting customer");
-        System.out.println("2. Take an order from a seated customer");
-        System.out.println("3. Serve an order that is ready");
+    // Shows the waiter menu until a number on it is entered.
+    public WaiterAction readWaiterAction() {
+        while (true) {
+            System.out.println();
+            System.out.println("Waiter actions:");
+            for (WaiterAction action : WaiterAction.values()) {
+                System.out.println(action.getChoice() + ". " + action.getMenuLabel());
+            }
+            Optional<WaiterAction> action =
+                    WaiterAction.fromChoice(readInt("Choose a waiter action: "));
+            if (action.isPresent()) {
+                return action.get();
+            }
+            displayError(WaiterAction.invalidChoiceMessage());
+        }
     }
 
     // Displays the chef's numbered order choices.
@@ -158,11 +167,6 @@ public class GameCLI {
         for (int i = 0; i < actionLines.size(); i++) {
             System.out.println(actionLines.get(i));
         }
-    }
-
-    // Reads the waiter's chosen action.
-    public int getWaiterChoice() {
-        return readInt("Choose a waiter action: ");
     }
 
     // Reads the chef's chosen order ID.

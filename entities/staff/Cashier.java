@@ -2,14 +2,18 @@ package entities.staff;
 
 import entities.customer.Customer;
 import entities.customer.CustomerStatus;
-import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import utility.Require;
 
-/** Processes at most one payment per turn (see Staff), oldest first. */
+/**
+ * Processes at most one payment per turn (see Staff), oldest first.
+ *
+ * <p>It only needs the customer and their table, not the whole restaurant. The
+ * controller records the revenue after a successful payment.
+ */
 public class Cashier extends Staff {
     /** Served earliest first; ties broken by customer id. */
     private static final Comparator<Customer> OLDEST_FIRST =
@@ -28,25 +32,23 @@ public class Cashier extends Staff {
     }
 
     /**
-     * Charges the customer (customer and order become PAID), records the revenue and
-     * frees their table.
+     * Charges the customer (customer and order become PAID) and frees their table.
      *
+     * @param table the table the customer sits at
      * @throws utility.GameRuleException if the customer is not allowed to pay this turn
      */
-    public void processPayment(Customer customer, Restaurant restaurant, int turn) {
+    public void processPayment(Customer customer, Table table, int turn) {
         Objects.requireNonNull(customer, "Customer cannot be null.");
-        Objects.requireNonNull(restaurant, "Restaurant cannot be null.");
+        Objects.requireNonNull(table, "Table cannot be null.");
 
         performTask(turn, () -> {
             Require.rule(customer.getStatus() == CustomerStatus.READY_TO_PAY,
                     "Only a customer who is ready to pay can pay.");
             Require.rule(customer.canPayOn(turn),
                     "Customer cannot pay on the turn they became ready to pay.");
-            Table table = restaurant.findTableByCustomer(customer);
-            Require.state(table != null, "Customer is not seated at a table.");
+            Require.state(table.isOccupiedBy(customer), "Customer is not seated at this table.");
 
             customer.pay();
-            restaurant.recordPayment(customer);
             table.release();
         });
     }

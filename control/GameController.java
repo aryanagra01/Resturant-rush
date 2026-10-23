@@ -176,15 +176,27 @@ public class GameController {
         while (!candidates.isEmpty() && cashier.canAct(currentTurn)) {
             Customer payer = cashier.chooseNextPayer(candidates);
             try {
-                cashier.processPayment(payer, restaurant, currentTurn);
-                cli.displayMessage(payer.getName() + " paid "
-                        + GameCLI.formatMoney(payer.getOrder().orElseThrow().getBillCents())
-                        + ". Satisfaction recorded: " + payer.getSatisfaction() + ".");
+                checkout(payer);
             } catch (GameRuleException ex) {
                 cli.displayError(ex.getMessage());
                 candidates.remove(payer);
             }
         }
+    }
+
+    // The only place a customer is charged: the Cashier takes the payment and the
+    // revenue is recorded in the same step, so one can never happen without the other.
+    private void checkout(Customer payer) {
+        // A ready-to-pay customer always has a table; if not, it is a bug.
+        Table table = restaurant.findTableByCustomer(payer);
+        if (table == null) {
+            throw new IllegalStateException(payer.getName() + " is not at a table.");
+        }
+        restaurant.getCashier().processPayment(payer, table, currentTurn);
+        restaurant.recordPayment(payer);
+        cli.displayMessage(payer.getName() + " paid "
+                + GameCLI.formatMoney(payer.getOrder().orElseThrow().getBillCents())
+                + ". Satisfaction recorded: " + payer.getSatisfaction() + ".");
     }
 
     // Waiting and seated customers lose satisfaction. At 0 they leave.

@@ -28,6 +28,11 @@ public class Table {
         return customer == null;
     }
 
+    /** True when this exact customer sits here. */
+    public boolean isOccupiedBy(Customer customer) {
+        return this.customer == customer && customer != null;
+    }
+
     // Called by the Waiter when seating a customer.
     public void occupy(Customer customer) {
         Objects.requireNonNull(customer, "Customer cannot be null.");

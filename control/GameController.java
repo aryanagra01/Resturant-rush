@@ -1,73 +1,91 @@
 package control;
 
-import boundary.GameCLI;
 import config.GameSettings;
 import entities.customer.Customer;
-import entities.customer.CustomerStatus;
 import entities.customer.CustomerType;
 import entities.customer.Order;
-import entities.customer.OrderStatus;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import entities.staff.Cashier;
 import entities.staff.Chef;
 import entities.staff.Waiter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import utility.GameRuleException;
 import utility.IdSequence;
-import utility.Money;
 
-// Coordinates the turns. Specific objects apply their own state changes.
+/**
+ * Runs the turns in the order the brief requires.
+ *
+ * <p>It coordinates the restaurant, the staff and the view; the domain objects
+ * apply their own rules and the view does all text formatting. It owns the staff
+ * and depends only on the {@link GameView} interface, not on a concrete UI. Only
+ * {@link GameRuleException} is treated as a refused choice; any other exception
+ * is a bug and stops the game.
+ */
 public class GameController {
+    private static final int CHEF_WAIT = 0;
 
     private final GameSettings settings;
     private final Restaurant restaurant;
-    private final GameCLI cli;
+    private final GameView view;
     private final Waiter waiter;
     private final Chef chef;
     private final Cashier cashier;
     private final IdSequence customerIds;
     private int currentTurn;
 
-    // The restaurant is built from the same settings, so the two always match.
-    public GameController(GameSettings settings, GameCLI cli) {
+    /** The restaurant is built from the same settings, so the two always match. */
+    public GameController(GameSettings settings, GameView view) {
         this.settings = Objects.requireNonNull(settings, "Settings cannot be null.");
-        this.cli = Objects.requireNonNull(cli, "Game CLI cannot be null.");
+        this.view = Objects.requireNonNull(view, "View cannot be null.");
         restaurant = settings.createRestaurant();
 
         // A fixed staff of three, as the base setting requires.
+
         waiter = new Waiter(1, "Waiter", new IdSequence());
         chef = new Chef(2, "Chef");
         cashier = new Cashier(3, "Cashier");
         customerIds = new IdSequence();
     }
 
-    // Runs every turn, then displays the final result.
+    /** Plays every turn, then shows victory or defeat. */
     public void startGame() {
         int maxTurns = settings.getMaxTurns();
-        cli.displayWelcome(restaurant, maxTurns);
+        view.displayWelcome(restaurant, maxTurns);
         for (currentTurn = 1; currentTurn <= maxTurns; currentTurn++) {
             playTurn();
         }
-        cli.displayFinalResults(restaurant, maxTurns);
+        view.displayFinalResults(restaurant, maxTurns);
     }
 
-    // Processes arrivals, manager choices, kitchen work, eating and payment.
-    // Then decreases satisfaction and displays the end-of-turn result.
     private void playTurn() {
         processArrivals();
-        cli.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
-        processManagerChoices();
-        processChefChoices();
-        processEatingAndPayment();
+        view.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
+        retryUntilValid(this::processWaiterChoice);
+        retryUntilValid(this::processChefChoice);
+        processEating();
+        processPayment();
         processSatisfactionAndAbandonment();
-        cli.displayTurnResults(restaurant, currentTurn, settings.getMaxTurns());
+        view.displayTurnResults(restaurant, currentTurn, settings.getMaxTurns());
     }
 
-    // The settings say who arrives on each turn; CustomerType creates the right subclass.
+    // Runs one manager decision. If it breaks a game rule, the reason is shown and
+    // the manager chooses again; the staff task is not used up (see Staff.performTask).
+    private void retryUntilValid(Runnable decision) {
+        while (true) {
+            try {
+                decision.run();
+                return;
+            } catch (GameRuleException ex) {
+                view.displayError(ex.getMessage());
+            }
+        }
+    }
+
+    // ---------- step 1: arrivals ----------
+
     private void processArrivals() {
         settings.arrivalOn(currentTurn).ifPresent(this::admit);
     }
@@ -76,100 +94,84 @@ public class GameController {
         int id = customerIds.next();
         Customer customer = type.create(id, "Customer " + id);
         restaurant.addCustomer(customer);
-        cli.displayMessage(customer.getName()
-                + " arrived and joined the waiting queue.");
+        view.showArrival(customer);
     }
 
-    // Reads and performs one waiter task before the chef is asked.
-    // If the action fails, the manager can choose again without losing the turn.
-    private void processManagerChoices() {
-        while (true) {
-            WaiterAction action = cli.readWaiterAction();
-            try {
-                Customer customer = null;
-                if (action.needsCustomer()) {
-                    int customerId = cli.readInt("Enter the customer id: ");
-                    customer = restaurant.findCustomer(customerId).orElseThrow(
-                            () -> new GameRuleException("No customer has id " + customerId + "."));
-                }
-                action.perform(this, customer);
-                return;
-            } catch (IllegalArgumentException | IllegalStateException | GameRuleException ex) {
-                cli.displayError(ex.getMessage());
-            }
+    // ---------- step 2 and 3: manager choices, waiter before chef ----------
+
+    private void processWaiterChoice() {
+        WaiterAction action = view.readWaiterAction();
+        Customer customer = null;
+        if (action.needsCustomer()) {
+            int customerId = view.readInt("Enter the customer id: ");
+            customer = restaurant.findCustomer(customerId).orElseThrow(
+                    () -> new GameRuleException("No customer has id " + customerId + "."));
         }
+        action.perform(this, customer);
     }
 
-    // The chef acts after the waiter, so a newly placed order can be prepared.
-    // An order that becomes READY here cannot be served until a later turn.
-    private void processChefChoices() {
-        while (true) {
-            cli.displayChefActions(chefActionLines());
-            int choice = cli.getChefChoice();
+    // Called by WaiterAction.WAIT.
+    void waiterWaits() {
+        view.showWaits(waiter);
+    }
 
-            if (choice == 0) {
-                cli.displayMessage("The chef waits.");
-                return;
-            }
+    // Called by WaiterAction.SEAT.
+    void seatCustomer(Customer customer) {
+        Table table = restaurant.findAvailableTable().orElseThrow(
+                () -> new GameRuleException("No table is available."));
+        waiter.seatCustomer(customer, table, currentTurn);
+        restaurant.removeFromWaitingQueue(customer);
+        view.showSeated(customer, table);
+    }
 
-            Order order = restaurant.findOrder(choice).orElse(null);
-            if (order == null) {
-                cli.displayError("No order has id " + choice + ".");
-                continue;
-            }
+    // Called by WaiterAction.TAKE_ORDER. The customer chooses the food.
+    void takeCustomerOrder(Customer customer) {
+        MenuItem item = restaurant.selectMenuItem(customer);
+        Order order = waiter.takeOrder(customer, item, currentTurn);
+        view.showOrderTaken(customer, order);
+    }
 
-            try {
-                chef.prepareOrder(order, currentTurn);
-                String readyNote = order.isReady() ? " The order is ready." : "";
-                cli.displayMessage("The chef prepared one unit of "
-                        + order.getMenuItem().getName()
-                        + " for order " + order.getOrderId()
-                        + " (" + order.getPreparedUnits() + "/"
-                        + order.getMenuItem().getPreparationUnits() + ")."
-                        + readyNote);
-                return;
-            } catch (IllegalArgumentException | IllegalStateException | GameRuleException ex) {
-                cli.displayError(ex.getMessage());
-            }
+    // Called by WaiterAction.SERVE.
+    void serveCustomer(Customer customer) {
+        waiter.serveOrder(customer, currentTurn);
+        restaurant.recordService();
+        view.showServed(customer);
+    }
+
+    // The chef acts after the waiter, so a dish finished now is served next turn.
+    private void processChefChoice() {
+        int choice = view.readChefChoice(restaurant.getCustomersWithOrdersToPrepare());
+        if (choice == CHEF_WAIT) {
+            view.showWaits(chef);
+            return;
         }
+
+        Order order = restaurant.findOrder(choice).orElseThrow(
+                () -> new GameRuleException("No order has id " + choice + "."));
+        chef.prepareOrder(order, currentTurn);
+        view.showPrepared(order);
     }
 
-    // Handles eating and payment in the correct turn order.
-    // Customers who finish eating this turn can only pay next turn (see canPayOn).
-    private void processEatingAndPayment() {
-        processEating();
-        processPayments();
-    }
+    // ---------- step 4: eating and payment ----------
 
-    // Customers served in an earlier turn finish eating.
     private void processEating() {
-        List<Customer> customers = restaurant.getCustomers();
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            if (customer.isDoneEating(currentTurn)) {
-                customer.finishEating(currentTurn);
-                cli.displayMessage(customer.getName()
-                        + " finished eating and is ready to pay.");
-            }
+        for (Customer customer : restaurant.findCustomers(c -> c.isDoneEating(currentTurn))) {
+            customer.finishEating(currentTurn);
+            view.showFinishedEating(customer);
         }
     }
 
-    // The Cashier takes at most one payment, oldest first.
+    // Customers who became ready to pay this turn are excluded by canPayOn.
     // If a payment is refused, the next oldest customer is tried.
-    private void processPayments() {
-        ArrayList<Customer> candidates = new ArrayList<>();
-        for (Customer customer : restaurant.getCustomers()) {
-            if (customer.canPayOn(currentTurn)) {
-                candidates.add(customer);
-            }
-        }
+    private void processPayment() {
+        List<Customer> candidates = restaurant.findCustomers(c -> c.canPayOn(currentTurn));
 
         while (!candidates.isEmpty() && cashier.canAct(currentTurn)) {
             Customer payer = cashier.chooseNextPayer(candidates);
             try {
                 checkout(payer);
             } catch (GameRuleException ex) {
-                cli.displayError(ex.getMessage());
+                view.displayError(ex.getMessage());
                 candidates.remove(payer);
             }
         }
@@ -183,20 +185,13 @@ public class GameController {
                 () -> new IllegalStateException(payer.getName() + " is not at a table."));
         cashier.processPayment(payer, table, currentTurn);
         restaurant.recordPayment(payer);
-        cli.displayMessage(payer.getName() + " paid "
-                + Money.format(payer.getOrder().orElseThrow().getBillCents())
-                + ". Satisfaction recorded: " + payer.getSatisfaction() + ".");
+        view.showPayment(payer);
     }
 
-    // Waiting and seated customers lose satisfaction. At 0 they leave.
+    // ---------- step 5: waiting and abandonment ----------
+
     private void processSatisfactionAndAbandonment() {
-        List<Customer> customers = restaurant.getCustomers();
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            if (customer.getStatus() != CustomerStatus.WAITING
-                    && customer.getStatus() != CustomerStatus.SEATED) {
-                continue;
-            }
+        for (Customer customer : restaurant.findCustomers(Customer::isAwaitingService)) {
             customer.decreaseSatisfaction();
             if (customer.isAbandoning()) {
                 abandonCustomer(customer);
@@ -204,96 +199,18 @@ public class GameController {
         }
     }
 
-    // Called by WaiterAction.WAIT.
-    void waiterWaits() {
-        cli.displayMessage("The waiter waits.");
-    }
-
-    // Called by WaiterAction.SEAT.
-    // find avialble table, seat cuomser and remove them from waiting queue
-    void seatCustomer(Customer customer) {
-        Table table = restaurant.findAvailableTable().orElseThrow(
-                () -> new GameRuleException("No table is available."));
-        waiter.seatCustomer(customer, table, currentTurn);
-        restaurant.removeFromWaitingQueue(customer);
-        cli.displayMessage("The waiter seated " + customer.getName()
-                + " at table " + table.getTableId() + ".");
-    }
-
-    // Called by WaiterAction.TAKE_ORDER.
-    //determine the customer's menu choic (detemirnstic thing) e and ask the waiter to create an order.
-    void takeCustomerOrder(Customer customer) {
-        MenuItem item = restaurant.selectMenuItem(customer);
-        Order order = waiter.takeOrder(customer, item, currentTurn);
-        cli.displayMessage(customer.getName() + " ordered " + item.getName()
-                + " (" + Money.format(order.getBillCents())
-                + ", " + item.getPreparationUnits() + " preparation unit"
-                + (item.getPreparationUnits() == 1 ? "" : "s")
-                + "). Order id " + order.getOrderId() + ".");
-    }
-
-    // Called by WaiterAction.SERVE.
-    void serveCustomer(Customer customer) {
-        waiter.serveOrder(customer, currentTurn);
-        restaurant.recordService();
-        cli.displayMessage("The waiter served " + customer.getName()
-                + ". The customer is now eating.");
-    }
-
-    
     private void abandonCustomer(Customer customer) {
+        boolean orderCancelled = customer.cancelUnfinishedOrder();
 
-        //check if order is not completed or paid and then sets boolean to cancel 
-        Order order = customer.getOrder().orElse(null);
-        boolean cancelledOrder = customer.cancelUnfinishedOrder();
-
-
-        //remove from waiting queue or the table
-        String tableNote = "";
-        if (customer.getStatus() == CustomerStatus.WAITING) {
+        Table freedTable = null;
+        if (customer.canBeSeated()) {
             restaurant.removeFromWaitingQueue(customer);
-        } else if (customer.getStatus() == CustomerStatus.SEATED) {
-            Table table = restaurant.releaseTableOf(customer).orElse(null);
-            if (table != null) {
-                tableNote = " Table " + table.getTableId() + " is free.";
-            }
+        } else {
+            freedTable = restaurant.releaseTableOf(customer).orElse(null);
         }
 
-        //updates the 2 statuses
         customer.leave();
         restaurant.recordAbandonment();
-
-        //finally display
-        String orderNote = "";
-        if (cancelledOrder) {
-            orderNote = " Order " + order.getOrderId() + " was cancelled.";
-        }
-        cli.displayMessage(customer.getName()
-                + " left unhappy (satisfaction 0)." + orderNote + tableNote);
-    }
-
-    // Builds the list of chef actions for orders needing preparation.
-    // Only placed or preparing orders are displayed.
-    private ArrayList<String> chefActionLines() {
-        ArrayList<String> lines = new ArrayList<>();
-        lines.add("0. Wait");
-        List<Customer> customers = restaurant.getCustomers();
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            Order order = customer.getOrder().orElse(null);
-            if (order == null) {
-                continue;
-            }
-            if (order.getStatus() != OrderStatus.PLACED
-                    && order.getStatus() != OrderStatus.PREPARING) {
-                continue;
-            }
-            lines.add(order.getOrderId() + ". Prepare order " + order.getOrderId()
-                    + " for " + customer.getName()
-                    + ": " + order.getMenuItem().getName()
-                    + " (" + order.getPreparedUnits() + "/"
-                    + order.getMenuItem().getPreparationUnits() + ")");
-        }
-        return lines;
+        view.showDeparture(customer, orderCancelled, freedTable);
     }
 }

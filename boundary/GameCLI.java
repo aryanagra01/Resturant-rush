@@ -1,155 +1,143 @@
 package boundary;
 
+import control.GameView;
 import control.WaiterAction;
-import entities.customer.CriticCustomer;
 import entities.customer.Customer;
-import entities.customer.CustomerStatus;
+import entities.customer.CustomerType;
 import entities.customer.Order;
-import entities.customer.OrderStatus;
-import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
+import entities.restaurant.GameStats;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import entities.restaurant.VictoryTargets;
-import java.util.ArrayList;
+import entities.staff.Staff;
+import java.io.PrintStream;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import utility.Money;
 
-// Boundary class. Displays the restaurant and reads manager input.
-// Game rules are handled by GameController and the domain classes.
-public class GameCLI {
-    private final Scanner scanner;
+/**
+ * Command-line implementation of {@link GameView}.
+ *
+ * <p>It holds no game rules: it asks the domain objects (e.g.
+ * {@code customer.canBeServed()}) and only turns the answers into text. Input and
+ * output are passed in, so tests can drive it with a script and capture the text.
+ */
+public class GameCLI implements GameView {
+    private static final String WELCOME = """
+            ========================================
+            Restaurant Rush
+            ========================================
+            You are the manager. The game runs for %d turns.
+            Each turn the waiter and the chef can each do one task, or wait.
+            The cashier automatically takes one eligible payment per turn.
+            Customers choose their own food.
+            An invalid choice is explained, and you can choose again.
 
-    public GameCLI() {
-        scanner = new Scanner(System.in);
+            Customer types:""";
+
+    private static final String TARGETS = """
+
+            Win at the end of turn %d if all three are true:
+            - at least %d paid customers
+            - revenue at least %s
+            - average satisfaction of paid customers at least %d
+
+            Menu:""";
+
+    private final Scanner in;
+    private final PrintStream out;
+
+    /** For example {@code new GameCLI(new Scanner(System.in), System.out)}. */
+    public GameCLI(Scanner in, PrintStream out) {
+        this.in = Objects.requireNonNull(in, "Input cannot be null.");
+        this.out = Objects.requireNonNull(out, "Output cannot be null.");
     }
 
-    // Displays the game rules, victory conditions and menu.
+    // One formatted line of output. Used for every line the game prints.
+    private void say(String format, Object... args) {
+        out.println(String.format(format, args));
+    }
+
+    // ---------- screens ----------
+
+    @Override
     public void displayWelcome(Restaurant restaurant, int maxTurns) {
         VictoryTargets targets = restaurant.getStats().getTargets();
-        System.out.println("========================================");
-        System.out.println("Restaurant Rush");
-        System.out.println("========================================");
-        System.out.println("You are the manager. The game runs for " + maxTurns + " turns.");
-        System.out.println("Each turn the waiter and the chef can each do one task, or wait.");
-        System.out.println("The cashier automatically takes one eligible payment per turn.");
-        System.out.println("Customers choose their own food.");
-        System.out.println("An invalid choice is explained, and you can choose again.");
-        System.out.println();
-        System.out.println("Customer types:");
-        System.out.println("- Regular: loses 8 satisfaction per turn while waiting or seated, pays full price, and chooses food from their customer id.");
-        System.out.println("- VIP: loses 5 satisfaction per turn while waiting or seated, and receives a 10% discount.");
-        System.out.println("- Critic: loses 12 satisfaction per turn while waiting or seated, always orders Pasta, and gains 10 satisfaction if served within 2 turns of ordering. Satisfaction cannot exceed 100.");
-        System.out.println();
-        System.out.println("Win at the end of turn " + maxTurns + " if all three are true:");
-        System.out.println("- at least " + targets.getPaidCustomers() + " paid customers");
-        System.out.println("- revenue at least "
-                + Money.format(targets.getRevenueCents()));
-        System.out.println("- average satisfaction of paid customers at least "
-                + targets.getAverageSatisfaction());
-        System.out.println();
-        System.out.println("Menu:");
-
+        say(WELCOME, maxTurns);
+        for (CustomerType type : CustomerType.values()) {
+            say("- %s: %s", type.getLabel(), type.describeRules());
+        }
+        say(TARGETS, maxTurns, targets.getPaidCustomers(),
+                Money.format(targets.getRevenueCents()), targets.getAverageSatisfaction());
         List<MenuItem> menu = restaurant.getMenu();
         for (int i = 0; i < menu.size(); i++) {
             MenuItem item = menu.get(i);
-            System.out.println("- " + i + ". " + item.getName()
-                    + " " + Money.format(item.getPriceCents())
-                    + ", " + item.getPreparationUnits() + " preparation unit"
-                    + (item.getPreparationUnits() == 1 ? "" : "s"));
+            say("- %d. %s %s, %s", i, item.getName(),
+                    Money.format(item.getPriceCents()), units(item.getPreparationUnits()));
         }
-        System.out.println();
+        say("");
     }
 
-    // Displays the restaurant's state at the start of a turn.
+    @Override
     public void displayGameState(Restaurant restaurant, int turn, int maxTurns) {
-        System.out.println();
-        System.out.println("---------- Turn " + turn + " of "
-                + maxTurns + " ----------");
-        System.out.println("Revenue: " + Money.format(restaurant.getStats().getRevenueCents()));
-        System.out.println("Average satisfaction of paid customers: "
-                + formatAverage(restaurant));
-        System.out.println("Paid: " + restaurant.getStats().getPaidCount()
-                + " | Served: " + restaurant.getStats().getServedCount()
-                + " | Unhappy departures: " + restaurant.getStats().getUnhappyDepartures());
+        GameStats stats = restaurant.getStats();
+        say("%n---------- Turn %d of %d ----------", turn, maxTurns);
+        printRevenueAndAverage(stats, false);
+        say("Paid: %d | Served: %d | Unhappy departures: %d", stats.getPaidCount(),
+                stats.getServedCount(), stats.getUnhappyDepartures());
 
-        displayWaitingQueue(restaurant);
-        displayTables(restaurant);
-        displayCustomers(restaurant);
+        say("%nWaiting queue:");
+        printCustomers(restaurant.getWaitingCustomers(), "(empty)", false);
 
-        System.out.println();
-        System.out.println("Available staff tasks:");
-        System.out.println("  Waiter: " + describeWaiterTasks(restaurant));
-        System.out.println("  Chef: " + describeChefTasks(restaurant));
-        System.out.println("  Cashier: Automatically collects one eligible payment per turn.");
-    }
-
-    // Displays customers waiting for a table.
-    private void displayWaitingQueue(Restaurant restaurant) {
-        System.out.println();
-        System.out.println("Waiting queue:");
-        List<Customer> waiting = restaurant.getWaitingCustomers();
-        if (waiting.isEmpty()) {
-            System.out.println("  (empty)");
-        } else {
-            for (int i = 0; i < waiting.size(); i++) {
-                Customer customer = waiting.get(i);
-                System.out.println("  " + customer.getName()
-                        + " (" + getCustomerType(customer) + ")"
-                        + " | Satisfaction: " + customer.getSatisfaction());
-            }
+        say("%nTables:");
+        for (Table table : restaurant.getTables()) {
+            say("  Table %d: %s", table.getTableId(),
+                    table.getCustomer().map(c -> customerLine(c, true)).orElse("Free"));
         }
+
+        say("%nCustomers:");
+        printCustomers(restaurant.getCustomers(), "(none)", true);
+
+        say("%nAvailable staff tasks:");
+        say("  Waiter: %s", describeWaiterTasks(restaurant));
+        say("  Chef: %s", describeChefTasks(restaurant));
+        say("  Cashier: Automatically collects one eligible payment per turn.");
     }
 
-    // Displays free tables and the customers occupying them.
-    private void displayTables(Restaurant restaurant) {
-        System.out.println();
-        System.out.println("Tables:");
-        List<Table> tables = restaurant.getTables();
-        for (int i = 0; i < tables.size(); i++) {
-            Table table = tables.get(i);
-            if (table.isAvailable()) {
-                System.out.println("  Table " + table.getTableId() + ": Free");
-            } else {
-                Customer seated = table.getCustomer().orElseThrow();
-                System.out.println("  Table " + table.getTableId() + ": "
-                        + seated.getName()
-                        + " (" + getCustomerType(seated) + ")"
-                        + " | " + formatStatus(seated.getStatus().toString())
-                        + " | Satisfaction: " + seated.getSatisfaction()
-                        + " | " + describeOrder(seated.getOrder().orElse(null)));
-            }
-        }
+    @Override
+    public void displayTurnResults(Restaurant restaurant, int turn, int maxTurns) {
+        say("%n----- End of turn %d -----", turn);
+        printServiceCounts(restaurant.getStats());
+        printRevenueAndAverage(restaurant.getStats(), false);
+        say("Turns used: %d / %d", turn, maxTurns);
     }
 
-    // Displays all customers and their order status.
-    private void displayCustomers(Restaurant restaurant) {
-        System.out.println();
-        System.out.println("Customers:");
-        List<Customer> customers = restaurant.getCustomers();
-        if (customers.isEmpty()) {
-            System.out.println("  (none)");
-        } else {
-            for (int i = 0; i < customers.size(); i++) {
-                Customer customer = customers.get(i);
-                System.out.println("  " + customer.getName()
-                        + " (" + getCustomerType(customer) + ")"
-                        + " | " + formatStatus(customer.getStatus().toString())
-                        + " | Satisfaction: " + customer.getSatisfaction()
-                        + " | " + describeOrder(customer.getOrder().orElse(null)));
-            }
-        }
+    @Override
+    public void displayFinalResults(Restaurant restaurant, int maxTurns) {
+        GameStats stats = restaurant.getStats();
+        String result = restaurant.hasWon() ? "VICTORY" : "DEFEAT";
+        say("%n========== Final result: %s ==========", result);
+        say("Paid customers: %d (need %d)", stats.getPaidCount(),
+                stats.getTargets().getPaidCustomers());
+        printServiceCounts(stats);
+        printRevenueAndAverage(stats, true);
+        say("Turns used: %d", maxTurns);
+        say("Result: %s", result);
     }
 
-    // Shows the waiter menu until a number on it is entered.
+    // ---------- reading the manager's choices ----------
+
+    @Override
     public WaiterAction readWaiterAction() {
         while (true) {
-            System.out.println();
-            System.out.println("Waiter actions:");
+            say("%nWaiter actions:");
             for (WaiterAction action : WaiterAction.values()) {
-                System.out.println(action.getChoice() + ". " + action.getMenuLabel());
+                say("%d. %s", action.getChoice(), action.getMenuLabel());
             }
             Optional<WaiterAction> action =
                     WaiterAction.fromChoice(readInt("Choose a waiter action: "));
@@ -160,32 +148,28 @@ public class GameCLI {
         }
     }
 
-    // Displays the chef's numbered order choices.
-    public void displayChefActions(ArrayList<String> actionLines) {
-        System.out.println();
-        System.out.println("Chef actions:");
-        for (int i = 0; i < actionLines.size(); i++) {
-            System.out.println(actionLines.get(i));
+    @Override
+    public int readChefChoice(List<Customer> customersWithOrdersToPrepare) {
+        say("%nChef actions:");
+        say("0. Wait");
+        for (Customer customer : customersWithOrdersToPrepare) {
+            Order order = orderOf(customer);
+            say("%d. Prepare order %d for %s: %s (%s)", order.getOrderId(),
+                    order.getOrderId(), customer.getName(), dish(order), progress(order));
         }
-    }
-
-    // Reads the chef's chosen order ID.
-    public int getChefChoice() {
         return readInt("Choose a chef action (0 = wait, or an order id): ");
     }
 
-    // Reads a whole number, asking again if the input is invalid.
+    @Override
     public int readInt(String prompt) {
         while (true) {
-            System.out.print(prompt);
-            System.out.flush();
-            String line = scanner.nextLine().trim();
-
+            out.print(prompt);
+            out.flush();
+            String line = in.nextLine().trim();
             if (line.isEmpty()) {
-                System.out.println();
+                say("");
                 continue;
             }
-
             try {
                 return Integer.parseInt(line);
             } catch (NumberFormatException ex) {
@@ -194,128 +178,155 @@ public class GameCLI {
         }
     }
 
-    // Displays an error message.
+    // ---------- event messages (the controller reports, the CLI words it) ----------
+
+    @Override
     public void displayError(String message) {
-        System.out.println("Error: " + message);
+        say("Error: %s", message);
     }
 
-    // Displays a game message.
-    public void displayMessage(String message) {
-        System.out.println(message);
+    @Override
+    public void showArrival(Customer c) {
+        say("%s arrived and joined the waiting queue.", c.getName());
     }
 
-    // Displays game statistics at the end of a turn.
-    public void displayTurnResults(Restaurant restaurant, int turn, int maxTurns) {
-        System.out.println();
-        System.out.println("----- End of turn " + turn + " -----");
-        System.out.println("Served: " + restaurant.getStats().getServedCount());
-        System.out.println("Unhappy departures: " + restaurant.getStats().getUnhappyDepartures());
-        System.out.println("Revenue: " + Money.format(restaurant.getStats().getRevenueCents()));
-        System.out.println("Average satisfaction of paid customers: "
-                + formatAverage(restaurant));
-        System.out.println("Turns used: " + turn + " / " + maxTurns);
+    @Override
+    public void showWaits(Staff staff) {
+        say("The %s waits.", staff.getName().toLowerCase());
     }
 
-    // Displays victory or defeat and the final statistics.
-    public void displayFinalResults(Restaurant restaurant, int maxTurns) {
-        VictoryTargets targets = restaurant.getStats().getTargets();
-        boolean won = restaurant.hasWon();
-        System.out.println();
-        System.out.println("========== Final result: "
-                + (won ? "VICTORY" : "DEFEAT") + " ==========");
-        System.out.println("Paid customers: " + restaurant.getStats().getPaidCount()
-                + " (need " + targets.getPaidCustomers() + ")");
-        System.out.println("Served: " + restaurant.getStats().getServedCount());
-        System.out.println("Unhappy departures: " + restaurant.getStats().getUnhappyDepartures());
-        System.out.println("Revenue: " + Money.format(restaurant.getStats().getRevenueCents())
-                + " (need " + Money.format(targets.getRevenueCents()) + ")");
-        System.out.println("Average satisfaction of paid customers: "
-                + formatAverage(restaurant)
-                + " (need " + targets.getAverageSatisfaction() + ")");
-        System.out.println("Turns used: " + maxTurns);
-        System.out.println("Result: " + (won ? "VICTORY" : "DEFEAT"));
+    @Override
+    public void showSeated(Customer c, Table table) {
+        say("The waiter seated %s at table %d.", c.getName(), table.getTableId());
     }
 
-    // Shows N/A until a customer has paid.
-    private String formatAverage(Restaurant restaurant) {
-        if (restaurant.getStats().getPaidCount() == 0) {
-            return "N/A";
+    @Override
+    public void showOrderTaken(Customer c, Order order) {
+        say("%s ordered %s (%s, %s). Order id %d.", c.getName(), dish(order),
+                Money.format(order.getBillCents()),
+                units(order.getMenuItem().getPreparationUnits()), order.getOrderId());
+    }
+
+    @Override
+    public void showPrepared(Order order) {
+        say("The chef prepared one unit of %s for order %d (%s).%s", dish(order),
+                order.getOrderId(), progress(order),
+                order.isReady() ? " The order is ready." : "");
+    }
+
+    @Override
+    public void showServed(Customer c) {
+        say("The waiter served %s. The customer is now eating.", c.getName());
+    }
+
+    @Override
+    public void showFinishedEating(Customer c) {
+        say("%s finished eating and is ready to pay.", c.getName());
+    }
+
+    @Override
+    public void showPayment(Customer c) {
+        say("%s paid %s. Satisfaction recorded: %d.", c.getName(),
+                Money.format(orderOf(c).getBillCents()), c.getSatisfaction());
+    }
+
+    @Override
+    public void showDeparture(Customer c, boolean orderCancelled, Table freedTable) {
+        String orderNote = orderCancelled
+                ? " Order " + orderOf(c).getOrderId() + " was cancelled." : "";
+        String tableNote = freedTable != null
+                ? " Table " + freedTable.getTableId() + " is free." : "";
+        say("%s left unhappy (satisfaction 0).%s%s", c.getName(), orderNote, tableNote);
+    }
+
+    // ---------- reusable formatting helpers ----------
+
+    private void printCustomers(List<Customer> list, String emptyText, boolean details) {
+        if (list.isEmpty()) {
+            say("  %s", emptyText);
         }
-        return String.format("%.1f", restaurant.getStats().getAverageSatisfaction());
-    }
-
-    // Describes an order and its preparation progress.
-    private String describeOrder(Order order) {
-        if (order == null) {
-            return "No order";
-        }
-        return "Order " + order.getOrderId() + ": " + order.getMenuItem().getName()
-                + " " + Money.format(order.getBillCents())
-                + " (" + formatStatus(order.getStatus().toString())
-                + ", " + order.getPreparedUnits() + "/"
-                + order.getMenuItem().getPreparationUnits() + ")";
-    }
-
-    // Shown next to the customer name. This does not affect gameplay.
-    private String getCustomerType(Customer customer) {
-        if (customer instanceof VIPCustomer) {
-            return "VIP";
-        } else if (customer instanceof CriticCustomer) {
-            return "Critic";
-        } else {
-            return "Regular";
+        for (Customer customer : list) {
+            say("  %s", customerLine(customer, details));
         }
     }
 
-    // Makes enum statuses easier to read.
-    private String formatStatus(String status) {
-        String words = status.toLowerCase().replace("_", " ");
-        return words.substring(0, 1).toUpperCase() + words.substring(1);
+    private void printServiceCounts(GameStats stats) {
+        say("Served: %d", stats.getServedCount());
+        say("Unhappy departures: %d", stats.getUnhappyDepartures());
     }
 
-    // Describes waiter tasks based on the current restaurant state.
-    private String describeWaiterTasks(Restaurant restaurant) {
-        StringBuilder text = new StringBuilder("Wait");
-        if (restaurant.findAvailableTable().isPresent()) {
-            List<Customer> waiting = restaurant.getWaitingCustomers();
-            for (int i = 0; i < waiting.size(); i++) {
-                text.append("; seat ").append(waiting.get(i).getName());
-            }
-        }
-
-        List<Customer> customers = restaurant.getCustomers();
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            Order order = customer.getOrder().orElse(null);
-            if (customer.getStatus() == CustomerStatus.SEATED && order == null) {
-                text.append("; take order from ").append(customer.getName());
-            }
-            if (customer.getStatus() == CustomerStatus.SEATED
-                    && order != null && order.isReady()) {
-                text.append("; serve ").append(customer.getName());
-            }
-        }
-        return text.toString();
+    private void printRevenueAndAverage(GameStats stats, boolean showTargets) {
+        VictoryTargets targets = stats.getTargets();
+        String average = stats.hasPaidCustomers()
+                ? String.format("%.1f", stats.getAverageSatisfaction()) : "N/A";
+        say("Revenue: %s%s", Money.format(stats.getRevenueCents()), showTargets
+                ? " (need " + Money.format(targets.getRevenueCents()) + ")" : "");
+        say("Average satisfaction of paid customers: %s%s", average, showTargets
+                ? " (need " + targets.getAverageSatisfaction() + ")" : "");
     }
 
-    // Describes orders that the chef can prepare.
-    private String describeChefTasks(Restaurant restaurant) {
-        StringBuilder text = new StringBuilder("Wait");
-        List<Customer> customers = restaurant.getCustomers();
-        for (int i = 0; i < customers.size(); i++) {
-            Order order = customers.get(i).getOrder().orElse(null);
-            if (order == null) {
-                continue;
-            }
-            if (order.getStatus() == OrderStatus.PLACED
-                    || order.getStatus() == OrderStatus.PREPARING) {
-                text.append("; prepare order ").append(order.getOrderId())
-                        .append(" (").append(order.getMenuItem().getName())
-                        .append(" ").append(order.getPreparedUnits())
-                        .append("/").append(order.getMenuItem().getPreparationUnits())
-                        .append(")");
-            }
+    // "Customer 2 (VIP) | Seated | Satisfaction: 90 | Order 2: Burger $13.50 (Placed, 0/1)"
+    // The type label comes from the customer object, not from instanceof checks.
+    private static String customerLine(Customer c, boolean details) {
+        String name = c.getName() + " (" + c.getType().getLabel() + ")";
+        String satisfaction = "Satisfaction: " + c.getSatisfaction();
+        if (!details) {
+            return name + " | " + satisfaction;
         }
-        return text.toString();
+        String orderText = c.getOrder()
+                .map(order -> String.format("Order %d: %s %s (%s, %s)", order.getOrderId(),
+                        dish(order), Money.format(order.getBillCents()),
+                        status(order.getStatus()), progress(order)))
+                .orElse("No order");
+        return String.join(" | ", name, status(c.getStatus()), satisfaction, orderText);
+    }
+
+    // The customer's order; only called when the customer is known to have one.
+    private static Order orderOf(Customer c) {
+        return c.getOrder().orElseThrow();
+    }
+
+    private static String dish(Order order) {
+        return order.getMenuItem().getName();
+    }
+
+    // "1/2"
+    private static String progress(Order order) {
+        return order.getPreparedUnits() + "/" + order.getMenuItem().getPreparationUnits();
+    }
+
+    // "1 preparation unit", "2 preparation units"
+    private static String units(int count) {
+        return count + " preparation unit" + (count == 1 ? "" : "s");
+    }
+
+    // Works for both CustomerStatus and OrderStatus: READY_TO_PAY -> "Ready to pay".
+    private static String status(Enum<?> status) {
+        String words = status.name().toLowerCase().replace("_", " ");
+        return Character.toUpperCase(words.charAt(0)) + words.substring(1);
+    }
+
+    // Eligibility comes from the customer objects, the same methods the Waiter
+    // uses to validate, so these hints always match the rules.
+    private static String describeWaiterTasks(Restaurant restaurant) {
+        Stream<String> seating = restaurant.findAvailableTable().isPresent()
+                ? restaurant.getWaitingCustomers().stream().map(c -> "seat " + c.getName())
+                : Stream.empty();
+        Stream<String> ordersAndServing = restaurant.getCustomers().stream()
+                .filter(c -> c.canPlaceOrder() || c.canBeServed())
+                .map(c -> (c.canPlaceOrder() ? "take order from " : "serve ") + c.getName());
+        return waitOr(Stream.concat(seating, ordersAndServing));
+    }
+
+    private static String describeChefTasks(Restaurant restaurant) {
+        return waitOr(restaurant.getCustomersWithOrdersToPrepare().stream()
+                .map(GameCLI::orderOf)
+                .map(o -> String.format("prepare order %d (%s %s)",
+                        o.getOrderId(), dish(o), progress(o))));
+    }
+
+    // "Wait; task; task" - every staff member can always wait.
+    private static String waitOr(Stream<String> tasks) {
+        return Stream.concat(Stream.of("Wait"), tasks).collect(Collectors.joining("; "));
     }
 }

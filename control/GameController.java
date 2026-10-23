@@ -14,6 +14,7 @@ import entities.restaurant.Table;
 import entities.staff.Cashier;
 import java.util.ArrayList;
 import utility.GameRuleException;
+import utility.Money;
 
 // Coordinates the 18 turns. Specific objects apply their own state changes.
 public class GameController {
@@ -195,7 +196,7 @@ public class GameController {
         restaurant.getCashier().processPayment(payer, table, currentTurn);
         restaurant.recordPayment(payer);
         cli.displayMessage(payer.getName() + " paid "
-                + GameCLI.formatMoney(payer.getOrder().orElseThrow().getBillCents())
+                + Money.format(payer.getOrder().orElseThrow().getBillCents())
                 + ". Satisfaction recorded: " + payer.getSatisfaction() + ".");
     }
 
@@ -270,7 +271,7 @@ public class GameController {
         MenuItem item = restaurant.selectMenuItem(customer);
         Order order = restaurant.getWaiter().takeOrder(customer, item, currentTurn);
         cli.displayMessage(customer.getName() + " ordered " + item.getName()
-                + " (" + GameCLI.formatMoney(order.getBillCents())
+                + " (" + Money.format(order.getBillCents())
                 + ", " + item.getPreparationUnits() + " preparation unit"
                 + (item.getPreparationUnits() == 1 ? "" : "s")
                 + "). Order id " + order.getOrderId() + ".");

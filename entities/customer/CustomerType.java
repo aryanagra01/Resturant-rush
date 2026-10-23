@@ -23,7 +23,7 @@ public enum CustomerType {
         }
     },
     CRITIC("Critic", CriticCustomer.SATISFACTION_LOSS,
-            ", always orders " + CriticCustomer.PREFERRED_DISH
+            ", prefers " + CriticCustomer.PREFERRED_DISH
                     + ", and gains " + CriticCustomer.FAST_SERVICE_BONUS
                     + " satisfaction if served within "
                     + CriticCustomer.FAST_SERVICE_TURNS

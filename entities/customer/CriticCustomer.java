@@ -3,7 +3,7 @@ package entities.customer;
 import entities.menu.MenuItem;
 import java.util.List;
 
-/** Always orders Pasta, loses satisfaction faster, and rewards fast service. */
+/** Prefers Pasta, loses satisfaction faster, and rewards fast service. */
 public class CriticCustomer extends Customer {
     public static final int SATISFACTION_LOSS = 12;
     public static final String PREFERRED_DISH = "Pasta";
@@ -25,9 +25,8 @@ public class CriticCustomer extends Customer {
     }
 
     /**
-     * Always orders Pasta. The menu was already checked by chooseMenuItem.
-     *
-     * @throws IllegalStateException if the menu has no Pasta
+     * Orders Pasta. If the menu has no Pasta, falls back to the default rule, so a
+     * Critic works with any menu a regular customer works with (Liskov).
      */
     @Override
     protected MenuItem pickMenuItem(List<MenuItem> menu) {
@@ -36,10 +35,10 @@ public class CriticCustomer extends Customer {
                 return item;
             }
         }
-        throw new IllegalStateException(PREFERRED_DISH + " is not on the menu.");
+        return super.pickMenuItem(menu);
     }
 
-    /** +10 satisfaction if served within 2 turns of ordering. Runs once, when served. */
+    /** +10 satisfaction if served within 2 turns of ordering. Runs once, from receiveFood. */
     @Override
     protected void onFoodServed(int placedTurn, int servedTurn) {
         if (servedTurn - placedTurn <= FAST_SERVICE_TURNS) {

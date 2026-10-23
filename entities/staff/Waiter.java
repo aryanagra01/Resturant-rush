@@ -74,7 +74,7 @@ public class Waiter extends Staff {
             throw new IllegalStateException(
                     "Only a seated customer can place an order.");
         }
-        if (customer.getOrder() != null) {
+        if (customer.getOrder().orElse(null) != null) {
             throw new IllegalStateException("Customer already has an order.");
         }
 
@@ -106,7 +106,7 @@ public class Waiter extends Staff {
                     "Only a seated customer can be served.");
         }
 
-        Order order = customer.getOrder();
+        Order order = customer.getOrder().orElse(null);
         if (order == null || !order.isReady()) {
             throw new IllegalStateException(
                     "Customer can only be served a ready order.");

@@ -193,7 +193,7 @@ public class GameController {
 
             try {
                 int satisfaction = oldestCustomer.getSatisfaction();
-                int billCents = oldestCustomer.getOrder().getBillCents();
+                int billCents = oldestCustomer.getOrder().orElse(null).getBillCents();
                 restaurant.getCashier().processPayment(
                         oldestCustomer, restaurant, currentTurn);
                 cli.displayMessage(oldestCustomer.getName() + " paid "
@@ -296,7 +296,7 @@ public class GameController {
     private void abandonCustomer(Customer customer) {
 
         //check if order is not completed or paid and then sets boolean to cancel 
-        Order order = customer.getOrder();
+        Order order = customer.getOrder().orElse(null);
         boolean cancelledOrder = customer.cancelUnfinishedOrder();
 
 
@@ -334,7 +334,7 @@ public class GameController {
         ArrayList<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
-            Order order = customer.getOrder();
+            Order order = customer.getOrder().orElse(null);
             if (order == null) {
                 continue;
             }
@@ -357,7 +357,7 @@ public class GameController {
         ArrayList<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
-            Order order = customer.getOrder();
+            Order order = customer.getOrder().orElse(null);
             if (order != null && order.getOrderId() == orderId) {
                 return order;
             }

@@ -197,7 +197,7 @@ public class Restaurant {
                     "Only a paid customer can be added to revenue.");
         }
 
-        Order order = customer.getOrder();
+        Order order = customer.getOrder().orElse(null);
         if (order == null || order.getStatus() != OrderStatus.PAID) {
             throw new IllegalStateException("Only a paid order adds revenue.");
         }

@@ -3,6 +3,7 @@ package entities.customer;
 import entities.menu.MenuItem;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import utility.Require;
 
 /**
@@ -110,9 +111,9 @@ public abstract class Customer {
         return status;
     }
 
-    /** The customer's order, or null before one is taken. */
-    public Order getOrder() {
-        return order;
+    /** The customer's order, or empty before one is taken. */
+    public Optional<Order> getOrder() {
+        return Optional.ofNullable(order);
     }
 
     /** The turn the customer was served, or -1 if not served yet. */

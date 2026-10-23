@@ -114,7 +114,7 @@ public class GameCLI {
                         + " (" + getCustomerType(seated) + ")"
                         + " | " + formatStatus(seated.getStatus().toString())
                         + " | Satisfaction: " + seated.getSatisfaction()
-                        + " | " + describeOrder(seated.getOrder()));
+                        + " | " + describeOrder(seated.getOrder().orElse(null)));
             }
         }
     }
@@ -133,7 +133,7 @@ public class GameCLI {
                         + " (" + getCustomerType(customer) + ")"
                         + " | " + formatStatus(customer.getStatus().toString())
                         + " | Satisfaction: " + customer.getSatisfaction()
-                        + " | " + describeOrder(customer.getOrder()));
+                        + " | " + describeOrder(customer.getOrder().orElse(null)));
             }
         }
     }
@@ -285,7 +285,7 @@ public class GameCLI {
         ArrayList<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
-            Order order = customer.getOrder();
+            Order order = customer.getOrder().orElse(null);
             if (customer.getStatus() == CustomerStatus.SEATED && order == null) {
                 text.append("; take order from ").append(customer.getName());
             }
@@ -302,7 +302,7 @@ public class GameCLI {
         StringBuilder text = new StringBuilder("Wait");
         ArrayList<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
-            Order order = customers.get(i).getOrder();
+            Order order = customers.get(i).getOrder().orElse(null);
             if (order == null) {
                 continue;
             }

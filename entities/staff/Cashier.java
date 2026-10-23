@@ -48,7 +48,7 @@ public class Cashier extends Staff {
                     "Customer cannot pay on the turn they became ready to pay.");
         }
 
-        Order order = customer.getOrder();
+        Order order = customer.getOrder().orElse(null);
         if (order == null || order.getStatus() != OrderStatus.SERVED) {
             throw new IllegalStateException("Only a served order can be paid.");
         }

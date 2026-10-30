@@ -96,9 +96,15 @@ public class GameCLI implements GameView {
         printCustomers(restaurant.getWaitingCustomers(), "(empty)", false);
 
         say("%nTables:");
-        for (Table table : restaurant.getTables()) {
-            say("  Table %d: %s", table.getTableId(),
-                    table.getCustomer().map(c -> customerLine(c, true)).orElse("Free"));
+        List<Table> tables = restaurant.getTables();
+        for (int i = 0; i < tables.size(); i++) {
+            Table table = tables.get(i);
+            String occupant = "Free";
+            Optional<Customer> seated = table.getCustomer();
+            if (seated.isPresent()) {
+                occupant = customerLine(seated.get(), true);
+            }
+            say("  Table %d: %s", table.getTableId(), occupant);
         }
 
         say("%nCustomers:");
@@ -153,7 +159,8 @@ public class GameCLI implements GameView {
     public int readChefChoice(List<Customer> customersWithOrdersToPrepare) {
         say("%nChef actions:");
         say("0. Wait");
-        for (Customer customer : customersWithOrdersToPrepare) {
+        for (int i = 0; i < customersWithOrdersToPrepare.size(); i++) {
+            Customer customer = customersWithOrdersToPrepare.get(i);
             Order order = orderOf(customer);
             say("%d. Prepare order %d for %s: %s (%s)", order.getOrderId(),
                     order.getOrderId(), customer.getName(), dish(order), progress(order));
@@ -246,8 +253,8 @@ public class GameCLI implements GameView {
         if (list.isEmpty()) {
             say("  %s", emptyText);
         }
-        for (Customer customer : list) {
-            say("  %s", customerLine(customer, details));
+        for (int i = 0; i < list.size(); i++) {
+            say("  %s", customerLine(list.get(i), details));
         }
     }
 
@@ -273,11 +280,14 @@ public class GameCLI implements GameView {
         if (!details) {
             return name + " | " + satisfaction;
         }
-        String orderText = c.getOrder()
-                .map(order -> String.format("Order %d: %s %s (%s, %s)", order.getOrderId(),
-                        dish(order), formatMoney(order.getBillCents()),
-                        status(order.getStatus()), progress(order)))
-                .orElse("No order");
+        String orderText = "No order";
+        Optional<Order> found = c.getOrder();
+        if (found.isPresent()) {
+            Order order = found.get();
+            orderText = String.format("Order %d: %s %s (%s, %s)", order.getOrderId(),
+                    dish(order), formatMoney(order.getBillCents()),
+                    status(order.getStatus()), progress(order));
+        }
         return String.join(" | ", name, status(c.getStatus()), satisfaction, orderText);
     }
 

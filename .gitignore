@@ -1,6 +1,6 @@
 *.class
-victory-run.txt
-defeat-run.txt
+test/victory-run.txt
+test/defeat-run.txt
 test/runs/
 
 # macOS folder metadata

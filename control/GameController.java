@@ -12,8 +12,10 @@ import entities.restaurant.Table;
 import entities.staff.Cashier;
 import entities.staff.Chef;
 import entities.staff.Waiter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import utility.GameRuleException;
 
 /**
@@ -64,26 +66,33 @@ public class GameController {
     private void playTurn() {
         processArrivals();
         view.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
-        retryUntilValid(this::processWaiterChoice);
-        retryUntilValid(this::processChefChoice);
-        processEating();
-        processPayment();
-        processSatisfactionAndAbandonment();
-        view.displayTurnResults(restaurant, currentTurn, settings.getMaxTurns());
-    }
 
-    // Runs one manager decision. If it breaks a game rule, the reason is shown and
-    // the manager chooses again. checkCanAct allows the task, and recordAction
-    // runs only after it succeeds, so a failed task does not use the turn.
-    private void retryUntilValid(Runnable decision) {
-        while (true) {
+        // A refused choice is shown and asked again. checkCanAct allows the task,
+        // and recordAction runs only after it succeeds, so a failed task does not use the turn.
+        boolean waiterFinished = false;
+        while (!waiterFinished) {
             try {
-                decision.run();
-                return;
+                processWaiterChoice();
+                waiterFinished = true;
             } catch (GameRuleException ex) {
                 view.displayError(ex.getMessage());
             }
         }
+
+        boolean chefFinished = false;
+        while (!chefFinished) {
+            try {
+                processChefChoice();
+                chefFinished = true;
+            } catch (GameRuleException ex) {
+                view.displayError(ex.getMessage());
+            }
+        }
+
+        processEating();
+        processPayment();
+        processSatisfactionAndAbandonment();
+        view.displayTurnResults(restaurant, currentTurn, settings.getMaxTurns());
     }
 
     // ---------- step 1: arrivals ----------
@@ -151,8 +160,11 @@ public class GameController {
 
     // Waiter choice 1.
     void seatCustomer(Customer customer) {
-        Table table = restaurant.findAvailableTable().orElseThrow(
-                () -> new GameRuleException("No table is available."));
+        Optional<Table> freeTable = restaurant.findAvailableTable();
+        if (freeTable.isEmpty()) {
+            throw new GameRuleException("No table is available.");
+        }
+        Table table = freeTable.get();
         waiter.seatCustomer(customer, table, currentTurn);
         restaurant.removeFromWaitingQueue(customer);
         view.showSeated(customer, table);
@@ -180,8 +192,11 @@ public class GameController {
             return;
         }
 
-        Order order = restaurant.findOrder(choice).orElseThrow(
-                () -> new GameRuleException("No order has id " + choice + "."));
+        Optional<Order> found = restaurant.findOrder(choice);
+        if (found.isEmpty()) {
+            throw new GameRuleException("No order has id " + choice + ".");
+        }
+        Order order = found.get();
         chef.prepareOrder(order, currentTurn);
         view.showPrepared(order);
     }
@@ -189,16 +204,27 @@ public class GameController {
     // ---------- step 4: eating and payment ----------
 
     private void processEating() {
-        for (Customer customer : restaurant.findCustomers(c -> c.isDoneEating(currentTurn))) {
-            customer.finishEating(currentTurn);
-            view.showFinishedEating(customer);
+        List<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
+            if (customer.isDoneEating(currentTurn)) {
+                customer.finishEating(currentTurn);
+                view.showFinishedEating(customer);
+            }
         }
     }
 
     // Customers who became ready to pay this turn are excluded by canPayOn.
     // If a payment is refused, the next oldest customer is tried.
     private void processPayment() {
-        List<Customer> candidates = restaurant.findCustomers(c -> c.canPayOn(currentTurn));
+        List<Customer> customers = restaurant.getCustomers();
+        ArrayList<Customer> candidates = new ArrayList<Customer>();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
+            if (customer.canPayOn(currentTurn)) {
+                candidates.add(customer);
+            }
+        }
 
         while (!candidates.isEmpty() && cashier.canAct(currentTurn)) {
             Customer payer = cashier.chooseNextPayer(candidates);
@@ -215,8 +241,11 @@ public class GameController {
     // revenue is recorded in the same step, so one can never happen without the other.
     private void checkout(Customer payer) {
         // A ready-to-pay customer always has a table; if not, it is a bug.
-        Table table = restaurant.findTableByCustomer(payer).orElseThrow(
-                () -> new IllegalStateException(payer.getName() + " is not at a table."));
+        Optional<Table> found = restaurant.findTableByCustomer(payer);
+        if (found.isEmpty()) {
+            throw new IllegalStateException(payer.getName() + " is not at a table.");
+        }
+        Table table = found.get();
         cashier.processPayment(payer, table, currentTurn);
         restaurant.recordPayment(payer);
         view.showPayment(payer);
@@ -225,7 +254,15 @@ public class GameController {
     // ---------- step 5: waiting and abandonment ----------
 
     private void processSatisfactionAndAbandonment() {
-        for (Customer customer : restaurant.findCustomers(Customer::isAwaitingService)) {
+        List<Customer> customers = restaurant.getCustomers();
+        ArrayList<Customer> awaiting = new ArrayList<Customer>();
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers.get(i).isAwaitingService()) {
+                awaiting.add(customers.get(i));
+            }
+        }
+        for (int i = 0; i < awaiting.size(); i++) {
+            Customer customer = awaiting.get(i);
             customer.decreaseSatisfaction();
             if (customer.isAbandoning()) {
                 abandonCustomer(customer);

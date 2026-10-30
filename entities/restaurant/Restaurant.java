@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
 import utility.Require;
 
 /**
@@ -68,48 +67,54 @@ public class Restaurant {
 
     // ---------- searching ----------
 
-    private static <T> Optional<T> findFirst(List<T> items, Predicate<T> condition) {
-        return items.stream().filter(condition).findFirst();
-    }
-
-    /**
-     * All customers (in arrival order) that match the condition.
-     * Returns a new list the caller may change.
-     */
-    public List<Customer> findCustomers(Predicate<Customer> condition) {
-        List<Customer> matches = new ArrayList<>();
-        for (Customer customer : customers) {
-            if (condition.test(customer)) {
-                matches.add(customer);
+    public Optional<Customer> findCustomer(int customerId) {
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers.get(i).getCustomerId() == customerId) {
+                return Optional.of(customers.get(i));
             }
         }
-        return matches;
-    }
-
-    public Optional<Customer> findCustomer(int customerId) {
-        return findFirst(customers, c -> c.getCustomerId() == customerId);
+        return Optional.empty();
     }
 
     public Optional<Order> findOrder(int orderId) {
-        return customers.stream()
-                .flatMap(c -> c.getOrder().stream())
-                .filter(order -> order.getOrderId() == orderId)
-                .findFirst();
+        for (int i = 0; i < customers.size(); i++) {
+            Optional<Order> order = customers.get(i).getOrder();
+            if (order.isPresent() && order.get().getOrderId() == orderId) {
+                return order;
+            }
+        }
+        return Optional.empty();
     }
 
     /** The first free table, if any. */
     public Optional<Table> findAvailableTable() {
-        return findFirst(tables, Table::isAvailable);
+        for (int i = 0; i < tables.size(); i++) {
+            if (tables.get(i).isAvailable()) {
+                return Optional.of(tables.get(i));
+            }
+        }
+        return Optional.empty();
     }
 
     public Optional<Table> findTableByCustomer(Customer customer) {
         Objects.requireNonNull(customer, "Customer cannot be null.");
-        return findFirst(tables, t -> t.isOccupiedBy(customer));
+        for (int i = 0; i < tables.size(); i++) {
+            if (tables.get(i).isOccupiedBy(customer)) {
+                return Optional.of(tables.get(i));
+            }
+        }
+        return Optional.empty();
     }
 
     /** Customers whose order the Chef can still work on. */
     public List<Customer> getCustomersWithOrdersToPrepare() {
-        return findCustomers(Customer::hasOrderToPrepare);
+        ArrayList<Customer> preparing = new ArrayList<Customer>();
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers.get(i).hasOrderToPrepare()) {
+                preparing.add(customers.get(i));
+            }
+        }
+        return preparing;
     }
 
     // ---------- changes ----------
@@ -133,7 +138,9 @@ public class Restaurant {
     /** Frees the customer's table and returns it, or empty if they had none. */
     public Optional<Table> releaseTableOf(Customer customer) {
         Optional<Table> table = findTableByCustomer(customer);
-        table.ifPresent(Table::release);
+        if (table.isPresent()) {
+            table.get().release();
+        }
         return table;
     }
 
@@ -148,9 +155,11 @@ public class Restaurant {
         Objects.requireNonNull(customer, "Customer cannot be null.");
         Require.state(customer.getStatus() == CustomerStatus.PAID,
                 "Only a paid customer can be added to revenue.");
-        Order order = customer.getOrder()
-                .filter(o -> o.getStatus() == OrderStatus.PAID)
-                .orElseThrow(() -> new IllegalStateException("Only a paid order adds revenue."));
+        Optional<Order> found = customer.getOrder();
+        if (found.isEmpty() || found.get().getStatus() != OrderStatus.PAID) {
+            throw new IllegalStateException("Only a paid order adds revenue.");
+        }
+        Order order = found.get();
 
         stats.recordPayment(order.getBillCents(), customer.getSatisfaction());
     }

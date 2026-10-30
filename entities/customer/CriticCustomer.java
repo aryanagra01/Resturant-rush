@@ -30,9 +30,9 @@ public class CriticCustomer extends Customer {
      */
     @Override
     protected MenuItem pickMenuItem(List<MenuItem> menu) {
-        for (MenuItem item : menu) {
-            if (item.getName().equals(PREFERRED_DISH)) {
-                return item;
+        for (int i = 0; i < menu.size(); i++) {
+            if (menu.get(i).getName().equals(PREFERRED_DISH)) {
+                return menu.get(i);
             }
         }
         return super.pickMenuItem(menu);

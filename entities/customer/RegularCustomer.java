@@ -1,6 +1,6 @@
 package entities.customer;
 
-/** The default customer: standard satisfaction loss, full price, default food rule. */
+// Pays full price, loses 8 satisfaction per waiting turn, and picks food from the customer id.
 public class RegularCustomer extends Customer {
     public static final int SATISFACTION_LOSS = 8;
 

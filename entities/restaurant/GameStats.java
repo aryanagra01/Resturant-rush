@@ -2,15 +2,10 @@ package entities.restaurant;
 
 import utility.Require;
 
-/**
- * Running totals and the victory check.
- *
- * <p>Split out of Restaurant so Restaurant only manages tables and customers. Only
- * Restaurant records changes (package-private methods), after checking the
- * customer's state.
- */
+// Running totals and the victory check.
+// Only Restaurant updates these, after checking the customer's state.
 public class GameStats {
-    // The three victory requirements. Paid customers, revenue in cents, then average satisfaction.
+    // The three victory requirements: paid customers, revenue in cents, and average satisfaction.
     private final int targetPaidCustomers;
     private final int targetRevenueCents;
     private final int targetAverageSatisfaction;
@@ -55,7 +50,7 @@ public class GameStats {
         return targetAverageSatisfaction;
     }
 
-    /** Revenue from paid orders only, in cents. */
+    // Revenue from paid orders only, in cents.
     public int getRevenueCents() {
         return revenueCents;
     }
@@ -76,17 +71,13 @@ public class GameStats {
         return paidCount > 0;
     }
 
-    /**
-     * Average of the satisfaction recorded when each customer paid.
-     *
-     * @throws IllegalStateException if nobody has paid; check {@link #hasPaidCustomers()}
-     */
+    // Average satisfaction of customers who have paid. Fails if nobody has paid yet.
     public double getAverageSatisfaction() {
         Require.state(hasPaidCustomers(), "No customer has paid yet.");
         return (double) totalPaidSatisfaction / paidCount;
     }
 
-    /** True when all three targets are met. Needs at least one paid customer. */
+    // True when all three victory requirements are met. Needs at least one paid customer.
     public boolean hasMetTargets() {
         return hasPaidCustomers()
                 && paidCount >= targetPaidCustomers

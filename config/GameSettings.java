@@ -6,13 +6,8 @@ import java.util.List;
 import java.util.Objects;
 import utility.Require;
 
-/**
- * One game's settings: turns, tables, menu, arrival schedule and victory targets.
- *
- * <p>An immutable object passed to the classes that need it, instead of global
- * constants, so other difficulty settings or test setups can be built without
- * touching the game code. {@link #base()} is the required base setting from the brief.
- */
+// One game's settings: turns, tables, menu, arrivals and victory requirements.
+// base() is the required setting from the assignment brief.
 public final class GameSettings {
     // 0 means nobody arrives. The other numbers are the three customer subclasses.
     public static final int NO_ARRIVAL = 0;
@@ -60,11 +55,9 @@ public final class GameSettings {
         this.targetAverageSatisfaction = targetAverageSatisfaction;
     }
 
-    /**
-     * The required base setting: 18 turns, 2 tables, Salad/Pasta/Burger, arrivals on
-     * turns 1, 4, 7, 10, 13 and 16 (turn 4 a VIP, turn 10 a Critic), and the targets
-     * 4 paid customers, $45.00 revenue, average satisfaction 60.
-     */
+    // 18 turns, 2 tables, Salad/Pasta/Burger.
+    // Arrivals on turns 1, 4, 7, 10, 13 and 16. Turn 4 is a VIP and turn 10 is a Critic.
+    // Victory needs 4 paid customers, $45.00 revenue and average satisfaction 60.
     public static GameSettings base() {
         // Turns 1, 7, 13 and 16 are regular. Turn 4 is a VIP. Turn 10 is a critic.
         int[] arrivals = new int[19];
@@ -86,7 +79,7 @@ public final class GameSettings {
                 4, 4500, 60);
     }
 
-    /** A fresh restaurant built from these settings. */
+    // A fresh restaurant built from these settings.
     public Restaurant createRestaurant() {
         return new Restaurant(menu, tableCount, targetPaidCustomers, targetRevenueCents,
                 targetAverageSatisfaction);
@@ -104,7 +97,7 @@ public final class GameSettings {
         return menu;
     }
 
-    // The customer code for this turn, or NO_ARRIVAL when nobody comes.
+    // The customer code arriving this turn, or NO_ARRIVAL when nobody comes.
     public int arrivalOn(int turn) {
         if (turn < 1 || turn > maxTurns) {
             return NO_ARRIVAL;

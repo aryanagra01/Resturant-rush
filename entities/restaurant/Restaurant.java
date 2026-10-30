@@ -11,14 +11,9 @@ import java.util.Objects;
 import java.util.Optional;
 import utility.Require;
 
-/**
- * The place: tables, waiting queue, customers, menu and statistics.
- *
- * <p>Built from values passed in (menu, table count, targets), not from global
- * settings, so a test or another difficulty can build a different restaurant.
- * Staff are not part of the restaurant; GameController owns them. Getters return
- * read-only copies, so callers cannot change the lists.
- */
+// Tables, waiting queue, customers, menu and statistics.
+// Built from the values passed in. GameController owns the staff.
+// Getters return copies, so callers cannot change the restaurant's lists.
 public class Restaurant {
     private final List<Table> tables;
     private final List<Customer> waitingQueue;
@@ -41,14 +36,12 @@ public class Restaurant {
         stats = new GameStats(targetPaidCustomers, targetRevenueCents, targetAverageSatisfaction);
     }
 
-    // ---------- getters ----------
-
-    /** Customers waiting for a table, in arrival order. */
+    // Customers waiting for a table, in arrival order.
     public List<Customer> getWaitingCustomers() {
         return List.copyOf(waitingQueue);
     }
 
-    /** Every customer who has arrived, in arrival order (including paid and departed). */
+    // Every customer who has arrived, in arrival order, including paid and departed customers.
     public List<Customer> getCustomers() {
         return List.copyOf(customers);
     }
@@ -64,8 +57,6 @@ public class Restaurant {
     public GameStats getStats() {
         return stats;
     }
-
-    // ---------- searching ----------
 
     public Optional<Customer> findCustomer(int customerId) {
         for (int i = 0; i < customers.size(); i++) {
@@ -86,7 +77,7 @@ public class Restaurant {
         return Optional.empty();
     }
 
-    /** The first free table, if any. */
+    // The first free table, if any.
     public Optional<Table> findAvailableTable() {
         for (int i = 0; i < tables.size(); i++) {
             if (tables.get(i).isAvailable()) {
@@ -106,7 +97,7 @@ public class Restaurant {
         return Optional.empty();
     }
 
-    /** Customers whose order the Chef can still work on. */
+    // Customers whose order the chef can still work on, in arrival order.
     public List<Customer> getCustomersWithOrdersToPrepare() {
         ArrayList<Customer> preparing = new ArrayList<Customer>();
         for (int i = 0; i < customers.size(); i++) {
@@ -117,9 +108,7 @@ public class Restaurant {
         return preparing;
     }
 
-    // ---------- changes ----------
-
-    /** Adds a newly arrived customer to the restaurant and the waiting queue. */
+    // Adds a newly arrived customer to the restaurant and the waiting queue.
     public void addCustomer(Customer customer) {
         Objects.requireNonNull(customer, "Customer cannot be null.");
         Require.state(customer.canBeSeated(), "Only a waiting customer can join the queue.");
@@ -135,7 +124,7 @@ public class Restaurant {
         Require.state(waitingQueue.remove(customer), "Customer is not in the waiting queue.");
     }
 
-    /** Frees the customer's table and returns it, or empty if they had none. */
+    // Frees the customer's table and returns it, or empty if they had none.
     public Optional<Table> releaseTableOf(Customer customer) {
         Optional<Table> table = findTableByCustomer(customer);
         if (table.isPresent()) {
@@ -144,13 +133,13 @@ public class Restaurant {
         return table;
     }
 
-    /** The customer chooses (dynamic binding: each customer type has its own rule). */
+    // Asks the customer to choose a dish. Each customer type has its own rule.
     public MenuItem selectMenuItem(Customer customer) {
         Objects.requireNonNull(customer, "Customer cannot be null.");
         return customer.chooseMenuItem(menu);
     }
 
-    /** Adds a completed payment to revenue. Called once, right after the Cashier charges. */
+    // Adds a completed payment to revenue. Called once, immediately after the cashier charges.
     public void recordPayment(Customer customer) {
         Objects.requireNonNull(customer, "Customer cannot be null.");
         Require.state(customer.getStatus() == CustomerStatus.PAID,

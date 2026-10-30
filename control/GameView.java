@@ -7,45 +7,32 @@ import entities.restaurant.Table;
 import entities.staff.Staff;
 import java.util.List;
 
-/**
- * What the controller needs from a user interface: show the game, report events,
- * and read the manager's choices.
- *
- * <p>The controller depends on this interface, not on a concrete UI (dependency
- * inversion). It lives in {@code control} because the controller owns it; the
- * boundary implements it ({@link boundary.GameCLI}), so {@code control} never
- * depends on {@code boundary}.
- */
+// What the controller needs from a user interface: show the game, report events
+// and read the manager's choices. GameCLI is the command-line implementation.
 public interface GameView {
 
-    // ---------- screens ----------
-
-    /** Rules, customer types, victory targets and menu. */
+    // Shows the rules, customer types, victory requirements and menu.
     void displayWelcome(Restaurant restaurant, int maxTurns);
 
-    /** Start-of-turn display: stats, queue, tables, customers and available tasks. */
+    // Shows the start-of-turn state: stats, queue, tables, customers and available tasks.
     void displayGameState(Restaurant restaurant, int turn, int maxTurns);
 
-    /** End-of-turn results. */
+    // Shows the end-of-turn results.
     void displayTurnResults(Restaurant restaurant, int turn, int maxTurns);
 
-    /** Victory or defeat and the final statistics. */
+    // Shows victory or defeat and the final statistics.
     void displayFinalResults(Restaurant restaurant, int maxTurns);
 
-    // ---------- reading the manager's choices ----------
-
-    /** Reads one waiter action, asking again until it is on the menu. */
+    // Reads one waiter action, asking again until the choice is 0 to 3.
     int readWaiterAction();
 
-    /** Shows the orders the chef can work on and reads an order id (0 = wait). */
+    // Shows the orders the chef can work on and reads an order id. 0 means wait.
     int readChefChoice(List<Customer> customersWithOrdersToPrepare);
 
-    /** Reads a whole number, asking again if the input is not one. */
+    // Reads a whole number, asking again if the input is not one.
     int readInt(String prompt);
 
-    // ---------- events ----------
-
-    /** Shows why a choice was refused. */
+    // Shows why a choice was refused.
     void displayError(String message);
 
     void showArrival(Customer customer);
@@ -64,10 +51,6 @@ public interface GameView {
 
     void showPayment(Customer customer);
 
-    /**
-     * A customer left unhappy.
-     *
-     * @param freedTable the table they left, or null if they were still in the queue
-     */
+    // A customer left unhappy. freedTable is null if they were still in the queue.
     void showDeparture(Customer customer, boolean orderCancelled, Table freedTable);
 }

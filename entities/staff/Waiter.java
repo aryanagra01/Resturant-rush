@@ -8,21 +8,16 @@ import entities.restaurant.Table;
 import java.util.Objects;
 import utility.Require;
 
-/** Seats customers, takes orders and serves ready food. One task per turn (see Staff). */
+// Seats customers, takes orders and serves ready food. One task per turn.
 public class Waiter extends Staff {
-    // Order ids start at 1 and go up by one for each order this waiter takes.
+    // Order ids start at 1 and increase by one for each order this waiter takes.
     private int nextOrderId = 1;
 
     public Waiter(int staffId, String name) {
         super(staffId, name);
     }
 
-    /**
-     * Seats a waiting customer at a free table. GameController removes the customer
-     * from the waiting queue afterwards.
-     *
-     * @throws utility.GameRuleException if the customer is not waiting or the table is taken
-     */
+    // Seats a waiting customer at a free table. The controller then removes them from the queue.
     public void seatCustomer(Customer customer, Table table, int turn) {
         checkCanAct(turn);
         Objects.requireNonNull(customer, "Customer cannot be null.");
@@ -35,12 +30,7 @@ public class Waiter extends Staff {
         recordAction(turn);
     }
 
-    /**
-     * Takes a seated customer's order. The bill is priced by the customer object
-     * (dynamic binding: VIPs get a discount) and locked in the new order.
-     *
-     * @throws utility.GameRuleException if the customer is not seated or already ordered
-     */
+    // Takes a seated customer's order. The customer prices the bill, including any VIP discount.
     public Order takeOrder(Customer customer, MenuItem item, int turn) {
         checkCanAct(turn);
         Objects.requireNonNull(customer, "Customer cannot be null.");
@@ -57,12 +47,7 @@ public class Waiter extends Staff {
         return order;
     }
 
-    /**
-     * Serves a READY order. GameController runs the Waiter before the Chef, so food
-     * that becomes ready this turn is served on a later turn at the earliest.
-     *
-     * @throws utility.GameRuleException if the customer is not seated or the order is not ready
-     */
+    // Serves a ready order. Food finished this turn is served on a later turn at the earliest.
     public void serveOrder(Customer customer, int turn) {
         checkCanAct(turn);
         Objects.requireNonNull(customer, "Customer cannot be null.");

@@ -3,7 +3,7 @@ package entities.customer;
 import entities.menu.MenuItem;
 import java.util.List;
 
-/** Prefers Pasta, loses satisfaction faster, and rewards fast service. */
+// Prefers Pasta, loses satisfaction faster, and gains satisfaction for fast service.
 public class CriticCustomer extends Customer {
     public static final int SATISFACTION_LOSS = 12;
     public static final String PREFERRED_DISH = "Pasta";
@@ -24,10 +24,7 @@ public class CriticCustomer extends Customer {
         return SATISFACTION_LOSS;
     }
 
-    /**
-     * Orders Pasta. If the menu has no Pasta, falls back to the default rule, so a
-     * Critic works with any menu a regular customer works with (Liskov).
-     */
+    // Orders Pasta. If the menu has no Pasta, uses the regular customer's rule.
     @Override
     protected MenuItem pickMenuItem(List<MenuItem> menu) {
         for (int i = 0; i < menu.size(); i++) {
@@ -38,7 +35,7 @@ public class CriticCustomer extends Customer {
         return super.pickMenuItem(menu);
     }
 
-    /** +10 satisfaction if served within 2 turns of ordering. Runs once, from receiveFood. */
+    // Adds 10 satisfaction if served within 2 turns of ordering. Runs once, from receiveFood.
     @Override
     protected void onFoodServed(int placedTurn, int servedTurn) {
         if (servedTurn - placedTurn <= FAST_SERVICE_TURNS) {

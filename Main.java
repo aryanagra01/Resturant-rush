@@ -4,10 +4,7 @@ import control.GameController;
 import control.GameView;
 import java.util.Scanner;
 
-/**
- * Starts one base-setting game. All rules live in the other classes; this is the
- * only place that chooses concrete classes and wires them together.
- */
+// Starts one base-setting game and wires the classes together.
 public class Main {
     public static void main(String[] args) {
         GameSettings settings = GameSettings.base();

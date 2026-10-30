@@ -6,25 +6,9 @@ import java.util.Objects;
 import java.util.Optional;
 import utility.Require;
 
-/**
- * Base class for every customer type.
- *
- * <p>
- * It holds the shared order-and-service flow (seat, order, eat, then pay or
- * leave). Subclasses change only the parts that differ, through dynamic
- * binding:
- * <ul>
- * <li>{@link #getType()}: which type this is</li>
- * <li>{@link #getSatisfactionLoss()}: points lost per waiting turn</li>
- * <li>{@link #pickMenuItem(List)}: which dish they choose</li>
- * <li>{@link #applyDiscount(int)}: how the bill is priced</li>
- * <li>{@link #onFoodServed(int, int)}: a reaction to being served</li>
- * </ul>
- * Callers always work with {@code Customer}, never with the concrete subclass.
- * The customer also keeps its order in step with itself:
- * {@link #receiveFood(int)}
- * and {@link #pay()} change both, so staff never update the two separately.
- */
+// Shared flow for every customer: seat, order, eat, then pay or leave.
+// Subclasses change the type name, satisfaction loss, food choice, discount and service bonus.
+// Receiving food and paying update the customer and the order together.
 
 
 public abstract class Customer {
@@ -53,47 +37,38 @@ public abstract class Customer {
         readyToPayTurn = NOT_YET;
     }
 
-    // ---------- behaviour each subclass defines ----------
-
     // Short name shown next to the customer, for example "VIP".
     public abstract String getType();
 
-    /** Satisfaction points lost per turn while waiting for a table or food. */
+    // Satisfaction points lost per turn while waiting for a table or for food.
     public abstract int getSatisfactionLoss();
 
-    /**
-     * Hook: the dish this customer picks from a non-empty menu. Overrides must always
-     * return an item from the menu. Default: menu index = customer id mod menu size.
-     */
+    // The dish this customer picks. The default uses customer id mod menu size.
     protected MenuItem pickMenuItem(List<MenuItem> menu) {
         return menu.get(Math.floorMod(customerId, menu.size()));
     }
 
-    /** Hook: the bill for a menu price. Default: full price. */
+    // The bill for a menu price. The default is the full price.
     protected int applyDiscount(int priceCents) {
         return priceCents;
     }
 
-    /** Hook: runs once, right after the customer is served. Default: nothing. */
+    // Runs once, immediately after the customer is served. The default does nothing.
     protected void onFoodServed(int placedTurn, int servedTurn) {
     }
 
-    // ---------- template methods: shared checks, then the subclass hook ----------
-
-    /** Validates the menu once, then lets the customer type pick. */
+    // Checks the menu, then lets the customer type choose a dish.
     public final MenuItem chooseMenuItem(List<MenuItem> menu) {
         Objects.requireNonNull(menu, "Menu cannot be null.");
         Require.state(!menu.isEmpty(), "The menu is empty.");
         return pickMenuItem(menu);
     }
 
-    /** Validates the price once, then lets the customer type apply its discount. */
+    // Checks the price, then lets the customer type apply its discount.
     public final int calculateBill(int priceCents) {
         Require.notNegative(priceCents, "Price");
         return applyDiscount(priceCents);
     }
-
-    // ---------- getters ----------
 
     public int getCustomerId() {
         return customerId;
@@ -111,19 +86,17 @@ public abstract class Customer {
         return status;
     }
 
-    /** The customer's order, or empty before one is taken. */
+    // The customer's order, or empty before one is taken.
     public Optional<Order> getOrder() {
         return Optional.ofNullable(order);
     }
 
-    /** The turn the customer was served, or -1 if not served yet. */
+    // The turn the customer was served, or -1 if not served yet.
     public int getServedTurn() {
         return servedTurn;
     }
 
-    // ---------- questions other classes ask (one source of truth) ----------
-
-    /** Waiting for a table or for food. */
+    // True while waiting for a table or for food.
     public boolean isAwaitingService() {
         return status.isAwaitingService();
     }
@@ -132,54 +105,49 @@ public abstract class Customer {
         return status == CustomerStatus.WAITING;
     }
 
-    /** Seated and has not ordered yet. */
+    // True when seated and no order has been taken yet.
     public boolean canPlaceOrder() {
         return status == CustomerStatus.SEATED && order == null;
     }
 
-    /** Seated and their order is READY. */
+    // True when seated and the order is ready to serve.
     public boolean canBeServed() {
         return status == CustomerStatus.SEATED && order != null && order.isReady();
     }
 
-    /** Has an order the Chef can still work on. */
+    // True when the chef can still prepare this customer's order.
     public boolean hasOrderToPrepare() {
         return order != null && order.needsPreparation();
     }
 
-    /** Served on an earlier turn, so one full turn of eating is done. */
+    // True when the customer has been eating since an earlier turn.
     public boolean isDoneEating(int turn) {
         return status == CustomerStatus.EATING && turn > servedTurn;
     }
 
-    /** Became READY_TO_PAY on an earlier turn, so the Cashier may charge now. */
+    // True when the customer became ready to pay on an earlier turn.
     public boolean canPayOn(int turn) {
         return status == CustomerStatus.READY_TO_PAY && turn > readyToPayTurn;
     }
 
-    /** Satisfaction hit 0 while still waiting for service. */
+    // True when satisfaction has reached 0 while still waiting for service.
     public boolean isAbandoning() {
         return satisfaction == 0 && isAwaitingService();
     }
 
-    // ---------- state changes ----------
-
-    /** Called by the Waiter after checking {@link #canBeSeated()}. */
+    // Marks the customer seated. The waiter checks canBeSeated first.
     public void seat() {
         Require.status(status, CustomerStatus.WAITING, "Customer", "be seated");
         status = CustomerStatus.SEATED;
     }
 
-    /** Called by the Waiter after checking {@link #canPlaceOrder()}. */
+    // Stores the order. The waiter checks canPlaceOrder first.
     public void assignOrder(Order order) {
         Require.state(canPlaceOrder(), "Customer cannot receive an order now.");
         this.order = Objects.requireNonNull(order, "Order cannot be null.");
     }
 
-    /**
-     * Called by the Waiter after checking {@link #canBeServed()}. Serves the order,
-     * starts eating, then runs the type's {@link #onFoodServed} hook once.
-     */
+    // Serves the order and starts eating, then runs onFoodServed once.
     public void receiveFood(int turn) {
         Require.state(canBeServed(), "Customer can only be served a ready order.");
 
@@ -189,7 +157,7 @@ public abstract class Customer {
         onFoodServed(order.getPlacedTurn(), turn);
     }
 
-    /** Called by the controller one full turn after being served. */
+    // Finishes eating one full turn after the customer was served.
     public void finishEating(int turn) {
         Require.status(status, CustomerStatus.EATING, "Customer", "finish eating");
         Require.state(turn > servedTurn, "Customer must eat for at least one turn.");
@@ -197,27 +165,27 @@ public abstract class Customer {
         readyToPayTurn = turn;
     }
 
-    /** Called by the Cashier: marks the customer and their order PAID together. */
+    // Marks the customer and their order paid together.
     public void pay() {
         Require.status(status, CustomerStatus.READY_TO_PAY, "Customer", "pay");
         order.markPaid();
         status = CustomerStatus.PAID;
     }
 
-    /** Loses {@link #getSatisfactionLoss()} points (minimum 0), only while awaiting service. */
+    // Loses satisfaction while waiting for service. Satisfaction cannot go below 0.
     public void decreaseSatisfaction() {
         if (isAwaitingService()) {
             satisfaction = Math.max(0, satisfaction - getSatisfactionLoss());
         }
     }
 
-    /** For subclasses: raises satisfaction, never above 100. */
+    // Raises satisfaction for a subclass. Satisfaction cannot go above 100.
     protected void increaseSatisfaction(int amount) {
         Require.notNegative(amount, "Satisfaction increase");
         satisfaction = Math.min(MAX_SATISFACTION, satisfaction + amount);
     }
 
-    /** Cancels the order if it was not served yet. Returns true when one was cancelled. */
+    // Cancels the order if it was not served yet. Returns true when one was cancelled.
     public boolean cancelUnfinishedOrder() {
         if (order == null || !order.isUnfinished()) {
             return false;
@@ -226,7 +194,7 @@ public abstract class Customer {
         return true;
     }
 
-    /** The customer abandons the restaurant. Only allowed while awaiting service. */
+    // The customer leaves. Only allowed while still waiting for service.
     public void leave() {
         Require.state(status != CustomerStatus.PAID && status != CustomerStatus.LEFT,
                 "A paid or departed customer cannot leave again.");

@@ -27,7 +27,7 @@ public abstract class Staff {
         return name;
     }
 
-    /** True when this staff member has not finished a task this turn. */
+    // True when this staff member has not finished a task this turn.
     public boolean canAct(int turn) {
         return turn >= 1 && lastActionTurn != turn;
     }
@@ -38,7 +38,7 @@ public abstract class Staff {
         Require.rule(canAct(turn), name + " has already completed a task this turn.");
     }
 
-    // Call this only after the task has succeeded.
+    // Records the staff action only after it succeeds.
     protected void recordAction(int turn) {
         lastActionTurn = turn;
     }

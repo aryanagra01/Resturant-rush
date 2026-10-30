@@ -18,15 +18,9 @@ import java.util.Objects;
 import java.util.Optional;
 import utility.GameRuleException;
 
-/**
- * Runs the turns in the order the brief requires.
- *
- * <p>It coordinates the restaurant, the staff and the view; the domain objects
- * apply their own rules and the view does all text formatting. It owns the staff
- * and depends only on the {@link GameView} interface, not on a concrete UI. Only
- * {@link GameRuleException} is treated as a refused choice; any other exception
- * is a bug and stops the game.
- */
+// Runs each turn in the order required by the assignment.
+// The domain objects apply their own rules and the view formats the text.
+// Only GameRuleException is a refused choice. Any other exception stops the game.
 public class GameController {
     private static final int CHEF_WAIT = 0;
 
@@ -36,24 +30,24 @@ public class GameController {
     private final Waiter waiter;
     private final Chef chef;
     private final Cashier cashier;
-    // Customer ids start at 1 and go up by one for each arrival.
+    // Customer ids start at 1 and increase by one for each arrival.
     private int nextCustomerId = 1;
     private int currentTurn;
 
-    /** The restaurant is built from the same settings, so the two always match. */
+    // The restaurant is built from these settings, so the two always match.
     public GameController(GameSettings settings, GameView view) {
         this.settings = Objects.requireNonNull(settings, "Settings cannot be null.");
         this.view = Objects.requireNonNull(view, "View cannot be null.");
         restaurant = settings.createRestaurant();
 
-        // A fixed staff of three, as the base setting requires.
+        // The base setting uses one waiter, one chef and one cashier.
 
         waiter = new Waiter(1, "Waiter");
         chef = new Chef(2, "Chef");
         cashier = new Cashier(3, "Cashier");
     }
 
-    /** Plays every turn, then shows victory or defeat. */
+    // Plays every turn, then shows victory or defeat.
     public void startGame() {
         int maxTurns = settings.getMaxTurns();
         view.displayWelcome(restaurant, maxTurns);
@@ -67,8 +61,8 @@ public class GameController {
         processArrivals();
         view.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
 
-        // A refused choice is shown and asked again. checkCanAct allows the task,
-        // and recordAction runs only after it succeeds, so a failed task does not use the turn.
+        // A refused choice is shown and asked again. recordAction runs only after
+        // the task succeeds, so a failed task does not use the turn.
         boolean waiterFinished = false;
         while (!waiterFinished) {
             try {
@@ -95,8 +89,6 @@ public class GameController {
         view.displayTurnResults(restaurant, currentTurn, settings.getMaxTurns());
     }
 
-    // ---------- step 1: arrivals ----------
-
     private void processArrivals() {
         int type = settings.arrivalOn(currentTurn);
         if (type != GameSettings.NO_ARRIVAL) {
@@ -122,8 +114,6 @@ public class GameController {
         view.showArrival(customer);
     }
 
-    // ---------- step 2 and 3: manager choices, waiter before chef ----------
-
     private void processWaiterChoice() {
         int choice = view.readWaiterAction();
         if (choice == 0) {
@@ -132,17 +122,11 @@ public class GameController {
         }
 
         int customerId = view.readInt("Enter the customer id: ");
-        Customer customer = null;
-        List<Customer> customers = restaurant.getCustomers();
-        for (int i = 0; i < customers.size(); i++) {
-            if (customers.get(i).getCustomerId() == customerId) {
-                customer = customers.get(i);
-                break;
-            }
-        }
-        if (customer == null) {
+        Optional<Customer> found = restaurant.findCustomer(customerId);
+        if (found.isEmpty()) {
             throw new GameRuleException("No customer has id " + customerId + ".");
         }
+        Customer customer = found.get();
 
         if (choice == 1) {
             seatCustomer(customer);
@@ -153,12 +137,12 @@ public class GameController {
         }
     }
 
-    // Waiter choice 0.
+    // Waiter choice 0: the waiter waits.
     void waiterWaits() {
         view.showWaits(waiter);
     }
 
-    // Waiter choice 1.
+    // Waiter choice 1: seat a waiting customer.
     void seatCustomer(Customer customer) {
         Optional<Table> freeTable = restaurant.findAvailableTable();
         if (freeTable.isEmpty()) {
@@ -170,21 +154,21 @@ public class GameController {
         view.showSeated(customer, table);
     }
 
-    // Waiter choice 2. The customer chooses the food.
+    // Waiter choice 2: take an order. The customer chooses the food.
     void takeCustomerOrder(Customer customer) {
         MenuItem item = restaurant.selectMenuItem(customer);
         Order order = waiter.takeOrder(customer, item, currentTurn);
         view.showOrderTaken(customer, order);
     }
 
-    // Waiter choice 3.
+    // Waiter choice 3: serve an order that is ready.
     void serveCustomer(Customer customer) {
         waiter.serveOrder(customer, currentTurn);
         restaurant.recordService();
         view.showServed(customer);
     }
 
-    // The chef acts after the waiter, so a dish finished now is served next turn.
+    // The chef acts after the waiter, so food finished now is served on a later turn.
     private void processChefChoice() {
         int choice = view.readChefChoice(restaurant.getCustomersWithOrdersToPrepare());
         if (choice == CHEF_WAIT) {
@@ -201,8 +185,6 @@ public class GameController {
         view.showPrepared(order);
     }
 
-    // ---------- step 4: eating and payment ----------
-
     private void processEating() {
         List<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
@@ -214,7 +196,7 @@ public class GameController {
         }
     }
 
-    // Customers who became ready to pay this turn are excluded by canPayOn.
+    // Customers who became ready to pay this turn cannot pay yet.
     // If a payment is refused, the next oldest customer is tried.
     private void processPayment() {
         List<Customer> customers = restaurant.getCustomers();
@@ -237,10 +219,9 @@ public class GameController {
         }
     }
 
-    // The only place a customer is charged: the Cashier takes the payment and the
-    // revenue is recorded in the same step, so one can never happen without the other.
+    // The only place a customer is charged. Payment and revenue are recorded together.
     private void checkout(Customer payer) {
-        // A ready-to-pay customer always has a table; if not, it is a bug.
+        // A customer who is ready to pay should still be at a table. If not, it is a bug.
         Optional<Table> found = restaurant.findTableByCustomer(payer);
         if (found.isEmpty()) {
             throw new IllegalStateException(payer.getName() + " is not at a table.");
@@ -251,21 +232,16 @@ public class GameController {
         view.showPayment(payer);
     }
 
-    // ---------- step 5: waiting and abandonment ----------
-
+    // Updates satisfaction for customers waiting for service, then removes anyone at 0.
     private void processSatisfactionAndAbandonment() {
         List<Customer> customers = restaurant.getCustomers();
-        ArrayList<Customer> awaiting = new ArrayList<Customer>();
         for (int i = 0; i < customers.size(); i++) {
-            if (customers.get(i).isAwaitingService()) {
-                awaiting.add(customers.get(i));
-            }
-        }
-        for (int i = 0; i < awaiting.size(); i++) {
-            Customer customer = awaiting.get(i);
-            customer.decreaseSatisfaction();
-            if (customer.isAbandoning()) {
-                abandonCustomer(customer);
+            Customer customer = customers.get(i);
+            if (customer.isAwaitingService()) {
+                customer.decreaseSatisfaction();
+                if (customer.isAbandoning()) {
+                    abandonCustomer(customer);
+                }
             }
         }
     }

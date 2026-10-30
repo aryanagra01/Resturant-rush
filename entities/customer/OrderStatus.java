@@ -1,11 +1,7 @@
 package entities.customer;
 
-/**
- * The stages an order goes through.
- *
- * <p>Each status knows whether the kitchen can still work on it and whether it is
- * unfinished, so these rules live in one place.
- */
+// The stages an order goes through.
+// Each status knows whether the chef can still prepare it and whether leaving cancels it.
 public enum OrderStatus {
     PLACED(true, true),
     PREPARING(true, true),
@@ -22,12 +18,12 @@ public enum OrderStatus {
         this.unfinished = unfinished;
     }
 
-    /** True when the Chef can still prepare a unit. */
+    // True when the chef can still prepare a unit.
     public boolean needsPreparation() {
         return needsPreparation;
     }
 
-    /** True when not yet served, so it is cancelled if the customer leaves. */
+    // True when the order has not been served, so leaving cancels it.
     public boolean isUnfinished() {
         return unfinished;
     }

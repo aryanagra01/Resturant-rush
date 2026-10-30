@@ -1,6 +1,7 @@
 *.class
 victory-run.txt
 defeat-run.txt
+test/runs/
 
 # macOS folder metadata
 .DS_Store

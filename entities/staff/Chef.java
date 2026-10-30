@@ -19,7 +19,9 @@ public class Chef extends Staff {
      * @throws utility.GameRuleException if the Chef already acted or the order cannot be prepared
      */
     public void prepareOrder(Order order, int turn) {
+        checkCanAct(turn);
         Objects.requireNonNull(order, "Order cannot be null.");
-        performTask(turn, order::prepareOneUnit);
+        order.prepareOneUnit();
+        recordAction(turn);
     }
 }

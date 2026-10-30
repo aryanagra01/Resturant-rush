@@ -24,15 +24,15 @@ public class Waiter extends Staff {
      * @throws utility.GameRuleException if the customer is not waiting or the table is taken
      */
     public void seatCustomer(Customer customer, Table table, int turn) {
-        performTask(turn, () -> {
-            Objects.requireNonNull(customer, "Customer cannot be null.");
-            Objects.requireNonNull(table, "Table cannot be null.");
-            Require.rule(customer.canBeSeated(), "Only a waiting customer can be seated.");
-            Require.rule(table.isAvailable(), "Table is already occupied.");
+        checkCanAct(turn);
+        Objects.requireNonNull(customer, "Customer cannot be null.");
+        Objects.requireNonNull(table, "Table cannot be null.");
+        Require.rule(customer.canBeSeated(), "Only a waiting customer can be seated.");
+        Require.rule(table.isAvailable(), "Table is already occupied.");
 
-            table.occupy(customer);
-            customer.seat();
-        });
+        table.occupy(customer);
+        customer.seat();
+        recordAction(turn);
     }
 
     /**
@@ -42,19 +42,19 @@ public class Waiter extends Staff {
      * @throws utility.GameRuleException if the customer is not seated or already ordered
      */
     public Order takeOrder(Customer customer, MenuItem item, int turn) {
-        return performTask(turn, () -> {
-            Objects.requireNonNull(customer, "Customer cannot be null.");
-            Objects.requireNonNull(item, "Menu item cannot be null.");
-            Require.rule(customer.getStatus() == CustomerStatus.SEATED,
-                    "Only a seated customer can place an order.");
-            Require.rule(customer.canPlaceOrder(), "Customer already has an order.");
+        checkCanAct(turn);
+        Objects.requireNonNull(customer, "Customer cannot be null.");
+        Objects.requireNonNull(item, "Menu item cannot be null.");
+        Require.rule(customer.getStatus() == CustomerStatus.SEATED,
+                "Only a seated customer can place an order.");
+        Require.rule(customer.canPlaceOrder(), "Customer already has an order.");
 
-            int billCents = customer.calculateBill(item.getPriceCents());
-            Order order = new Order(nextOrderId, item, billCents, turn);
-            nextOrderId++;
-            customer.assignOrder(order);
-            return order;
-        });
+        int billCents = customer.calculateBill(item.getPriceCents());
+        Order order = new Order(nextOrderId, item, billCents, turn);
+        customer.assignOrder(order);
+        nextOrderId++;
+        recordAction(turn);
+        return order;
     }
 
     /**
@@ -64,14 +64,14 @@ public class Waiter extends Staff {
      * @throws utility.GameRuleException if the customer is not seated or the order is not ready
      */
     public void serveOrder(Customer customer, int turn) {
-        performTask(turn, () -> {
-            Objects.requireNonNull(customer, "Customer cannot be null.");
-            Require.rule(customer.getStatus() == CustomerStatus.SEATED,
-                    "Only a seated customer can be served.");
-            Require.rule(customer.canBeServed(),
-                    "Customer can only be served a ready order.");
+        checkCanAct(turn);
+        Objects.requireNonNull(customer, "Customer cannot be null.");
+        Require.rule(customer.getStatus() == CustomerStatus.SEATED,
+                "Only a seated customer can be served.");
+        Require.rule(customer.canBeServed(),
+                "Customer can only be served a ready order.");
 
-            customer.receiveFood(turn);
-        });
+        customer.receiveFood(turn);
+        recordAction(turn);
     }
 }

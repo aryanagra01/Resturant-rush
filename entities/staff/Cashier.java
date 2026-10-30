@@ -38,18 +38,17 @@ public class Cashier extends Staff {
      * @throws utility.GameRuleException if the customer is not allowed to pay this turn
      */
     public void processPayment(Customer customer, Table table, int turn) {
+        checkCanAct(turn);
         Objects.requireNonNull(customer, "Customer cannot be null.");
         Objects.requireNonNull(table, "Table cannot be null.");
+        Require.rule(customer.getStatus() == CustomerStatus.READY_TO_PAY,
+                "Only a customer who is ready to pay can pay.");
+        Require.rule(customer.canPayOn(turn),
+                "Customer cannot pay on the turn they became ready to pay.");
+        Require.state(table.isOccupiedBy(customer), "Customer is not seated at this table.");
 
-        performTask(turn, () -> {
-            Require.rule(customer.getStatus() == CustomerStatus.READY_TO_PAY,
-                    "Only a customer who is ready to pay can pay.");
-            Require.rule(customer.canPayOn(turn),
-                    "Customer cannot pay on the turn they became ready to pay.");
-            Require.state(table.isOccupiedBy(customer), "Customer is not seated at this table.");
-
-            customer.pay();
-            table.release();
-        });
+        customer.pay();
+        table.release();
+        recordAction(turn);
     }
 }

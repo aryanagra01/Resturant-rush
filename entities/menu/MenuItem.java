@@ -1,17 +1,16 @@
-//shows the menu items
+package entities.menu;
+
+import utility.Require;
+
+/** One dish on the menu. Immutable once created. */
 public class MenuItem {
     private final String name;
     private final int priceCents;
     private final int preparationUnits;
 
-
     public MenuItem(String name, int priceCents, int preparationUnits) {
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Menu item name cannot be blank.");
-        }
-        if (priceCents < 0) {
-            throw new IllegalArgumentException("Price cannot be negative.");
-        }
+        Require.notBlank(name, "Menu item name");
+        Require.notNegative(priceCents, "Price");
         if (preparationUnits <= 0) {
             throw new IllegalArgumentException(
                     "Preparation units must be greater than zero.");
@@ -22,17 +21,23 @@ public class MenuItem {
         this.preparationUnits = preparationUnits;
     }
 
-    //getters 
-    //no setters once the item is finalised then no change
     public String getName() {
         return name;
     }
 
+    /** The menu price in cents, before any discount. */
     public int getPriceCents() {
         return priceCents;
     }
 
+    /** How many Chef turns this dish needs. */
     public int getPreparationUnits() {
         return preparationUnits;
+    }
+
+    @Override
+    public String toString() {
+        return "MenuItem[" + name + ", priceCents=" + priceCents
+                + ", units=" + preparationUnits + "]";
     }
 }

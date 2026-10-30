@@ -3,7 +3,6 @@ package entities.staff;
 import entities.customer.Customer;
 import entities.customer.CustomerStatus;
 import entities.restaurant.Table;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import utility.Require;
@@ -15,10 +14,6 @@ import utility.Require;
  * controller records the revenue after a successful payment.
  */
 public class Cashier extends Staff {
-    /** Served earliest first; ties broken by customer id. */
-    private static final Comparator<Customer> OLDEST_FIRST =
-            Comparator.comparingInt(Customer::getServedTurn)
-                    .thenComparingInt(Customer::getCustomerId);
 
     public Cashier(int staffId, String name) {
         super(staffId, name);
@@ -27,8 +22,22 @@ public class Cashier extends Staff {
     /** Picks who should pay next from a non-empty list of customers allowed to pay. */
     public Customer chooseNextPayer(List<Customer> candidates) {
         Objects.requireNonNull(candidates, "Candidates cannot be null.");
-        return candidates.stream().min(OLDEST_FIRST)
-                .orElseThrow(() -> new IllegalStateException("No customer is ready to pay."));
+        if (candidates.isEmpty()) {
+            throw new IllegalStateException("No customer is ready to pay.");
+        }
+
+        // Earliest served turn wins. The smaller customer id breaks a tie.
+        Customer oldest = candidates.get(0);
+        for (int i = 1; i < candidates.size(); i++) {
+            Customer candidate = candidates.get(i);
+            if (candidate.getServedTurn() < oldest.getServedTurn()) {
+                oldest = candidate;
+            } else if (candidate.getServedTurn() == oldest.getServedTurn()
+                    && candidate.getCustomerId() < oldest.getCustomerId()) {
+                oldest = candidate;
+            }
+        }
+        return oldest;
     }
 
     /**

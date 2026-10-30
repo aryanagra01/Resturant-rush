@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Command-line implementation of {@link GameView}.
@@ -317,25 +315,37 @@ public class GameCLI implements GameView {
 
     // Eligibility comes from the customer objects, the same methods the Waiter
     // uses to validate, so these hints always match the rules.
+    // "Wait; seat Customer 1; take order from Customer 2"
     private static String describeWaiterTasks(Restaurant restaurant) {
-        Stream<String> seating = restaurant.findAvailableTable().isPresent()
-                ? restaurant.getWaitingCustomers().stream().map(c -> "seat " + c.getName())
-                : Stream.empty();
-        Stream<String> ordersAndServing = restaurant.getCustomers().stream()
-                .filter(c -> c.canPlaceOrder() || c.canBeServed())
-                .map(c -> (c.canPlaceOrder() ? "take order from " : "serve ") + c.getName());
-        return waitOr(Stream.concat(seating, ordersAndServing));
+        StringBuilder text = new StringBuilder("Wait");
+        if (restaurant.findAvailableTable().isPresent()) {
+            List<Customer> waiting = restaurant.getWaitingCustomers();
+            for (int i = 0; i < waiting.size(); i++) {
+                text.append("; seat ").append(waiting.get(i).getName());
+            }
+        }
+        List<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
+            if (customer.canPlaceOrder()) {
+                text.append("; take order from ").append(customer.getName());
+            } else if (customer.canBeServed()) {
+                text.append("; serve ").append(customer.getName());
+            }
+        }
+        return text.toString();
     }
 
+    // "Wait; prepare order 1 (Pasta 1/2)"
     private static String describeChefTasks(Restaurant restaurant) {
-        return waitOr(restaurant.getCustomersWithOrdersToPrepare().stream()
-                .map(GameCLI::orderOf)
-                .map(o -> String.format("prepare order %d (%s %s)",
-                        o.getOrderId(), dish(o), progress(o))));
-    }
-
-    // "Wait; task; task" - every staff member can always wait.
-    private static String waitOr(Stream<String> tasks) {
-        return Stream.concat(Stream.of("Wait"), tasks).collect(Collectors.joining("; "));
+        StringBuilder text = new StringBuilder("Wait");
+        List<Customer> preparing = restaurant.getCustomersWithOrdersToPrepare();
+        for (int i = 0; i < preparing.size(); i++) {
+            Order order = orderOf(preparing.get(i));
+            text.append("; prepare order ").append(order.getOrderId())
+                    .append(" (").append(dish(order)).append(" ")
+                    .append(progress(order)).append(")");
+        }
+        return text.toString();
     }
 }

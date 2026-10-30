@@ -73,7 +73,8 @@ public class GameController {
     }
 
     // Runs one manager decision. If it breaks a game rule, the reason is shown and
-    // the manager chooses again; the staff task is not used up (see Staff.performTask).
+    // the manager chooses again. checkCanAct allows the task, and recordAction
+    // runs only after it succeeds, so a failed task does not use the turn.
     private void retryUntilValid(Runnable decision) {
         while (true) {
             try {

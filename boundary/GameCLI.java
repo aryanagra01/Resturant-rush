@@ -9,7 +9,6 @@ import entities.menu.MenuItem;
 import entities.restaurant.GameStats;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
-import entities.restaurant.VictoryTargets;
 import entities.staff.Staff;
 import java.io.PrintStream;
 import java.util.List;
@@ -18,7 +17,6 @@ import java.util.Optional;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import utility.Money;
 
 /**
  * Command-line implementation of {@link GameView}.
@@ -67,18 +65,18 @@ public class GameCLI implements GameView {
 
     @Override
     public void displayWelcome(Restaurant restaurant, int maxTurns) {
-        VictoryTargets targets = restaurant.getStats().getTargets();
+        GameStats stats = restaurant.getStats();
         say(WELCOME, maxTurns);
         for (CustomerType type : CustomerType.values()) {
             say("- %s: %s", type.getLabel(), type.describeRules());
         }
-        say(TARGETS, maxTurns, targets.getPaidCustomers(),
-                Money.format(targets.getRevenueCents()), targets.getAverageSatisfaction());
+        say(TARGETS, maxTurns, stats.getTargetPaidCustomers(),
+                formatMoney(stats.getTargetRevenueCents()), stats.getTargetAverageSatisfaction());
         List<MenuItem> menu = restaurant.getMenu();
         for (int i = 0; i < menu.size(); i++) {
             MenuItem item = menu.get(i);
             say("- %d. %s %s, %s", i, item.getName(),
-                    Money.format(item.getPriceCents()), units(item.getPreparationUnits()));
+                    formatMoney(item.getPriceCents()), units(item.getPreparationUnits()));
         }
         say("");
     }
@@ -123,7 +121,7 @@ public class GameCLI implements GameView {
         String result = restaurant.hasWon() ? "VICTORY" : "DEFEAT";
         say("%n========== Final result: %s ==========", result);
         say("Paid customers: %d (need %d)", stats.getPaidCount(),
-                stats.getTargets().getPaidCustomers());
+                stats.getTargetPaidCustomers());
         printServiceCounts(stats);
         printRevenueAndAverage(stats, true);
         say("Turns used: %d", maxTurns);
@@ -203,7 +201,7 @@ public class GameCLI implements GameView {
     @Override
     public void showOrderTaken(Customer c, Order order) {
         say("%s ordered %s (%s, %s). Order id %d.", c.getName(), dish(order),
-                Money.format(order.getBillCents()),
+                formatMoney(order.getBillCents()),
                 units(order.getMenuItem().getPreparationUnits()), order.getOrderId());
     }
 
@@ -227,7 +225,7 @@ public class GameCLI implements GameView {
     @Override
     public void showPayment(Customer c) {
         say("%s paid %s. Satisfaction recorded: %d.", c.getName(),
-                Money.format(orderOf(c).getBillCents()), c.getSatisfaction());
+                formatMoney(orderOf(c).getBillCents()), c.getSatisfaction());
     }
 
     @Override
@@ -256,13 +254,12 @@ public class GameCLI implements GameView {
     }
 
     private void printRevenueAndAverage(GameStats stats, boolean showTargets) {
-        VictoryTargets targets = stats.getTargets();
         String average = stats.hasPaidCustomers()
                 ? String.format("%.1f", stats.getAverageSatisfaction()) : "N/A";
-        say("Revenue: %s%s", Money.format(stats.getRevenueCents()), showTargets
-                ? " (need " + Money.format(targets.getRevenueCents()) + ")" : "");
+        say("Revenue: %s%s", formatMoney(stats.getRevenueCents()), showTargets
+                ? " (need " + formatMoney(stats.getTargetRevenueCents()) + ")" : "");
         say("Average satisfaction of paid customers: %s%s", average, showTargets
-                ? " (need " + targets.getAverageSatisfaction() + ")" : "");
+                ? " (need " + stats.getTargetAverageSatisfaction() + ")" : "");
     }
 
     // "Customer 2 (VIP) | Seated | Satisfaction: 90 | Order 2: Burger $13.50 (Placed, 0/1)"
@@ -275,7 +272,7 @@ public class GameCLI implements GameView {
         }
         String orderText = c.getOrder()
                 .map(order -> String.format("Order %d: %s %s (%s, %s)", order.getOrderId(),
-                        dish(order), Money.format(order.getBillCents()),
+                        dish(order), formatMoney(order.getBillCents()),
                         status(order.getStatus()), progress(order)))
                 .orElse("No order");
         return String.join(" | ", name, status(c.getStatus()), satisfaction, orderText);
@@ -293,6 +290,13 @@ public class GameCLI implements GameView {
     // "1/2"
     private static String progress(Order order) {
         return order.getPreparedUnits() + "/" + order.getMenuItem().getPreparationUnits();
+    }
+
+    // Formats cents as dollars, e.g. 1350 becomes "$13.50".
+    private static String formatMoney(int cents) {
+        int dollars = cents / 100;
+        int remainder = Math.abs(cents % 100);
+        return String.format("$%d.%02d", dollars, remainder);
     }
 
     // "1 preparation unit", "2 preparation units"

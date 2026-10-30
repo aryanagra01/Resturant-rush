@@ -3,7 +3,6 @@ package config;
 import entities.customer.CustomerType;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
-import entities.restaurant.VictoryTargets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -22,10 +21,13 @@ public final class GameSettings {
     private final int tableCount;
     private final List<MenuItem> menu;
     private final Map<Integer, CustomerType> arrivals;
-    private final VictoryTargets targets;
+    private final int targetPaidCustomers;
+    private final int targetRevenueCents;
+    private final int targetAverageSatisfaction;
 
     public GameSettings(int maxTurns, int tableCount, List<MenuItem> menu,
-            Map<Integer, CustomerType> arrivals, VictoryTargets targets) {
+            Map<Integer, CustomerType> arrivals, int targetPaidCustomers,
+            int targetRevenueCents, int targetAverageSatisfaction) {
         Require.validTurn(maxTurns, "Max turns");
         Require.argument(tableCount >= 1, "A game needs at least one table.");
         Objects.requireNonNull(menu, "Menu cannot be null.");
@@ -35,12 +37,17 @@ public final class GameSettings {
             Require.argument(turn >= 1 && turn <= maxTurns,
                     "Arrival turn " + turn + " is outside turns 1 to " + maxTurns + ".");
         }
+        Require.notNegative(targetPaidCustomers, "Paid customers target");
+        Require.notNegative(targetRevenueCents, "Revenue target");
+        Require.notNegative(targetAverageSatisfaction, "Average satisfaction target");
 
         this.maxTurns = maxTurns;
         this.tableCount = tableCount;
         this.menu = List.copyOf(menu);
         this.arrivals = Map.copyOf(arrivals);
-        this.targets = Objects.requireNonNull(targets, "Targets cannot be null.");
+        this.targetPaidCustomers = targetPaidCustomers;
+        this.targetRevenueCents = targetRevenueCents;
+        this.targetAverageSatisfaction = targetAverageSatisfaction;
     }
 
     /**
@@ -64,12 +71,13 @@ public final class GameSettings {
                         10, CustomerType.CRITIC,
                         13, CustomerType.REGULAR,
                         16, CustomerType.REGULAR),
-                new VictoryTargets(4, 4500, 60));
+                4, 4500, 60);
     }
 
     /** A fresh restaurant built from these settings. */
     public Restaurant createRestaurant() {
-        return new Restaurant(menu, tableCount, targets);
+        return new Restaurant(menu, tableCount, targetPaidCustomers, targetRevenueCents,
+                targetAverageSatisfaction);
     }
 
     public int getMaxTurns() {
@@ -82,10 +90,6 @@ public final class GameSettings {
 
     public List<MenuItem> getMenu() {
         return menu;
-    }
-
-    public VictoryTargets getTargets() {
-        return targets;
     }
 
     /** The type of customer arriving on this turn, if anyone arrives. */

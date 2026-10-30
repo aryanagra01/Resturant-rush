@@ -13,7 +13,6 @@ import entities.staff.Waiter;
 import java.util.List;
 import java.util.Objects;
 import utility.GameRuleException;
-import utility.IdSequence;
 
 /**
  * Runs the turns in the order the brief requires.
@@ -33,7 +32,8 @@ public class GameController {
     private final Waiter waiter;
     private final Chef chef;
     private final Cashier cashier;
-    private final IdSequence customerIds;
+    // Customer ids start at 1 and go up by one for each arrival.
+    private int nextCustomerId = 1;
     private int currentTurn;
 
     /** The restaurant is built from the same settings, so the two always match. */
@@ -44,10 +44,9 @@ public class GameController {
 
         // A fixed staff of three, as the base setting requires.
 
-        waiter = new Waiter(1, "Waiter", new IdSequence());
+        waiter = new Waiter(1, "Waiter");
         chef = new Chef(2, "Chef");
         cashier = new Cashier(3, "Cashier");
-        customerIds = new IdSequence();
     }
 
     /** Plays every turn, then shows victory or defeat. */
@@ -91,7 +90,8 @@ public class GameController {
     }
 
     private void admit(CustomerType type) {
-        int id = customerIds.next();
+        int id = nextCustomerId;
+        nextCustomerId++;
         Customer customer = type.create(id, "Customer " + id);
         restaurant.addCustomer(customer);
         view.showArrival(customer);

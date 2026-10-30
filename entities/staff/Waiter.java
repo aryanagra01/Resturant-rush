@@ -6,20 +6,15 @@ import entities.customer.Order;
 import entities.menu.MenuItem;
 import entities.restaurant.Table;
 import java.util.Objects;
-import utility.IdSequence;
 import utility.Require;
 
 /** Seats customers, takes orders and serves ready food. One task per turn (see Staff). */
 public class Waiter extends Staff {
-    private final IdSequence orderIds;
+    // Order ids start at 1 and go up by one for each order this waiter takes.
+    private int nextOrderId = 1;
 
-    /**
-     * @param orderIds where order ids come from; share one sequence between all
-     *                 waiters so ids never repeat
-     */
-    public Waiter(int staffId, String name, IdSequence orderIds) {
+    public Waiter(int staffId, String name) {
         super(staffId, name);
-        this.orderIds = Objects.requireNonNull(orderIds, "Order ids cannot be null.");
     }
 
     /**
@@ -55,7 +50,8 @@ public class Waiter extends Staff {
             Require.rule(customer.canPlaceOrder(), "Customer already has an order.");
 
             int billCents = customer.calculateBill(item.getPriceCents());
-            Order order = new Order(orderIds.next(), item, billCents, turn);
+            Order order = new Order(nextOrderId, item, billCents, turn);
+            nextOrderId++;
             customer.assignOrder(order);
             return order;
         });

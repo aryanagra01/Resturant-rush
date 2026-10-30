@@ -27,7 +27,8 @@ public class Restaurant {
     private final List<MenuItem> menu;
     private final GameStats stats;
 
-    public Restaurant(List<MenuItem> menu, int tableCount, VictoryTargets targets) {
+    public Restaurant(List<MenuItem> menu, int tableCount, int targetPaidCustomers,
+            int targetRevenueCents, int targetAverageSatisfaction) {
         Objects.requireNonNull(menu, "Menu cannot be null.");
         Require.notNegative(tableCount, "Table count");
 
@@ -38,7 +39,7 @@ public class Restaurant {
         }
         waitingQueue = new ArrayList<>();
         customers = new ArrayList<>();
-        stats = new GameStats(targets);
+        stats = new GameStats(targetPaidCustomers, targetRevenueCents, targetAverageSatisfaction);
     }
 
     // ---------- getters ----------

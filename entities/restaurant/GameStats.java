@@ -1,6 +1,5 @@
 package entities.restaurant;
 
-import java.util.Objects;
 import utility.Require;
 
 /**
@@ -11,15 +10,23 @@ import utility.Require;
  * customer's state.
  */
 public class GameStats {
-    private final VictoryTargets targets;
+    // The three victory requirements. Paid customers, revenue in cents, then average satisfaction.
+    private final int targetPaidCustomers;
+    private final int targetRevenueCents;
+    private final int targetAverageSatisfaction;
     private int revenueCents;
     private int paidCount;
     private int servedCount;
     private int unhappyDepartures;
     private int totalPaidSatisfaction;
 
-    public GameStats(VictoryTargets targets) {
-        this.targets = Objects.requireNonNull(targets, "Targets cannot be null.");
+    public GameStats(int targetPaidCustomers, int targetRevenueCents, int targetAverageSatisfaction) {
+        Require.notNegative(targetPaidCustomers, "Paid customers target");
+        Require.notNegative(targetRevenueCents, "Revenue target");
+        Require.notNegative(targetAverageSatisfaction, "Average satisfaction target");
+        this.targetPaidCustomers = targetPaidCustomers;
+        this.targetRevenueCents = targetRevenueCents;
+        this.targetAverageSatisfaction = targetAverageSatisfaction;
     }
 
     void recordPayment(int billCents, int satisfaction) {
@@ -36,8 +43,16 @@ public class GameStats {
         unhappyDepartures++;
     }
 
-    public VictoryTargets getTargets() {
-        return targets;
+    public int getTargetPaidCustomers() {
+        return targetPaidCustomers;
+    }
+
+    public int getTargetRevenueCents() {
+        return targetRevenueCents;
+    }
+
+    public int getTargetAverageSatisfaction() {
+        return targetAverageSatisfaction;
     }
 
     /** Revenue from paid orders only, in cents. */
@@ -74,7 +89,9 @@ public class GameStats {
     /** True when all three targets are met. Needs at least one paid customer. */
     public boolean hasMetTargets() {
         return hasPaidCustomers()
-                && targets.areMetBy(paidCount, revenueCents, getAverageSatisfaction());
+                && paidCount >= targetPaidCustomers
+                && revenueCents >= targetRevenueCents
+                && getAverageSatisfaction() >= targetAverageSatisfaction;
     }
 
     @Override

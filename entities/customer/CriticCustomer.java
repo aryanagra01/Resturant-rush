@@ -15,8 +15,8 @@ public class CriticCustomer extends Customer {
     }
 
     @Override
-    public CustomerType getType() {
-        return CustomerType.CRITIC;
+    public String getType() {
+        return "Critic";
     }
 
     @Override

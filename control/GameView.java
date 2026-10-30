@@ -35,7 +35,7 @@ public interface GameView {
     // ---------- reading the manager's choices ----------
 
     /** Reads one waiter action, asking again until it is on the menu. */
-    WaiterAction readWaiterAction();
+    int readWaiterAction();
 
     /** Shows the orders the chef can work on and reads an order id (0 = wait). */
     int readChefChoice(List<Customer> customersWithOrdersToPrepare);

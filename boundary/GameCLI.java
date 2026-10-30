@@ -1,10 +1,11 @@
 package boundary;
 
 import control.GameView;
-import control.WaiterAction;
+import entities.customer.CriticCustomer;
 import entities.customer.Customer;
-import entities.customer.CustomerType;
 import entities.customer.Order;
+import entities.customer.RegularCustomer;
+import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
 import entities.restaurant.GameStats;
 import entities.restaurant.Restaurant;
@@ -67,9 +68,13 @@ public class GameCLI implements GameView {
     public void displayWelcome(Restaurant restaurant, int maxTurns) {
         GameStats stats = restaurant.getStats();
         say(WELCOME, maxTurns);
-        for (CustomerType type : CustomerType.values()) {
-            say("- %s: %s", type.getLabel(), type.describeRules());
-        }
+        say("- Regular: loses %d satisfaction per turn while waiting or seated, pays full price, and chooses food from their customer id.",
+                RegularCustomer.SATISFACTION_LOSS);
+        say("- VIP: loses %d satisfaction per turn while waiting or seated, and receives a %d%% discount.",
+                VIPCustomer.SATISFACTION_LOSS, VIPCustomer.DISCOUNT_PERCENT);
+        say("- Critic: loses %d satisfaction per turn while waiting or seated, prefers %s, and gains %d satisfaction if served within %d turns of ordering. Satisfaction cannot exceed 100.",
+                CriticCustomer.SATISFACTION_LOSS, CriticCustomer.PREFERRED_DISH,
+                CriticCustomer.FAST_SERVICE_BONUS, CriticCustomer.FAST_SERVICE_TURNS);
         say(TARGETS, maxTurns, stats.getTargetPaidCustomers(),
                 formatMoney(stats.getTargetRevenueCents()), stats.getTargetAverageSatisfaction());
         List<MenuItem> menu = restaurant.getMenu();
@@ -131,18 +136,18 @@ public class GameCLI implements GameView {
     // ---------- reading the manager's choices ----------
 
     @Override
-    public WaiterAction readWaiterAction() {
+    public int readWaiterAction() {
         while (true) {
             say("%nWaiter actions:");
-            for (WaiterAction action : WaiterAction.values()) {
-                say("%d. %s", action.getChoice(), action.getMenuLabel());
+            say("0. Wait");
+            say("1. Seat a waiting customer");
+            say("2. Take an order from a seated customer");
+            say("3. Serve an order that is ready");
+            int choice = readInt("Choose a waiter action: ");
+            if (choice >= 0 && choice <= 3) {
+                return choice;
             }
-            Optional<WaiterAction> action =
-                    WaiterAction.fromChoice(readInt("Choose a waiter action: "));
-            if (action.isPresent()) {
-                return action.get();
-            }
-            displayError(WaiterAction.invalidChoiceMessage());
+            displayError("Choose 0 to wait, 1 to seat, 2 to take an order, or 3 to serve.");
         }
     }
 
@@ -265,7 +270,7 @@ public class GameCLI implements GameView {
     // "Customer 2 (VIP) | Seated | Satisfaction: 90 | Order 2: Burger $13.50 (Placed, 0/1)"
     // The type label comes from the customer object, not from instanceof checks.
     private static String customerLine(Customer c, boolean details) {
-        String name = c.getName() + " (" + c.getType().getLabel() + ")";
+        String name = c.getName() + " (" + c.getType() + ")";
         String satisfaction = "Satisfaction: " + c.getSatisfaction();
         if (!details) {
             return name + " | " + satisfaction;

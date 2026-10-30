@@ -1,9 +1,11 @@
 package control;
 
 import config.GameSettings;
+import entities.customer.CriticCustomer;
 import entities.customer.Customer;
-import entities.customer.CustomerType;
 import entities.customer.Order;
+import entities.customer.RegularCustomer;
+import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
@@ -86,13 +88,26 @@ public class GameController {
     // ---------- step 1: arrivals ----------
 
     private void processArrivals() {
-        settings.arrivalOn(currentTurn).ifPresent(this::admit);
+        int type = settings.arrivalOn(currentTurn);
+        if (type != GameSettings.NO_ARRIVAL) {
+            admit(type);
+        }
     }
 
-    private void admit(CustomerType type) {
+    private void admit(int type) {
         int id = nextCustomerId;
         nextCustomerId++;
-        Customer customer = type.create(id, "Customer " + id);
+        String name = "Customer " + id;
+        Customer customer;
+        if (type == GameSettings.REGULAR) {
+            customer = new RegularCustomer(id, name);
+        } else if (type == GameSettings.VIP) {
+            customer = new VIPCustomer(id, name);
+        } else if (type == GameSettings.CRITIC) {
+            customer = new CriticCustomer(id, name);
+        } else {
+            throw new IllegalStateException("Unknown customer type.");
+        }
         restaurant.addCustomer(customer);
         view.showArrival(customer);
     }
@@ -100,22 +115,40 @@ public class GameController {
     // ---------- step 2 and 3: manager choices, waiter before chef ----------
 
     private void processWaiterChoice() {
-        WaiterAction action = view.readWaiterAction();
-        Customer customer = null;
-        if (action.needsCustomer()) {
-            int customerId = view.readInt("Enter the customer id: ");
-            customer = restaurant.findCustomer(customerId).orElseThrow(
-                    () -> new GameRuleException("No customer has id " + customerId + "."));
+        int choice = view.readWaiterAction();
+        if (choice == 0) {
+            waiterWaits();
+            return;
         }
-        action.perform(this, customer);
+
+        int customerId = view.readInt("Enter the customer id: ");
+        Customer customer = null;
+        List<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers.get(i).getCustomerId() == customerId) {
+                customer = customers.get(i);
+                break;
+            }
+        }
+        if (customer == null) {
+            throw new GameRuleException("No customer has id " + customerId + ".");
+        }
+
+        if (choice == 1) {
+            seatCustomer(customer);
+        } else if (choice == 2) {
+            takeCustomerOrder(customer);
+        } else if (choice == 3) {
+            serveCustomer(customer);
+        }
     }
 
-    // Called by WaiterAction.WAIT.
+    // Waiter choice 0.
     void waiterWaits() {
         view.showWaits(waiter);
     }
 
-    // Called by WaiterAction.SEAT.
+    // Waiter choice 1.
     void seatCustomer(Customer customer) {
         Table table = restaurant.findAvailableTable().orElseThrow(
                 () -> new GameRuleException("No table is available."));
@@ -124,14 +157,14 @@ public class GameController {
         view.showSeated(customer, table);
     }
 
-    // Called by WaiterAction.TAKE_ORDER. The customer chooses the food.
+    // Waiter choice 2. The customer chooses the food.
     void takeCustomerOrder(Customer customer) {
         MenuItem item = restaurant.selectMenuItem(customer);
         Order order = waiter.takeOrder(customer, item, currentTurn);
         view.showOrderTaken(customer, order);
     }
 
-    // Called by WaiterAction.SERVE.
+    // Waiter choice 3.
     void serveCustomer(Customer customer) {
         waiter.serveOrder(customer, currentTurn);
         restaurant.recordService();

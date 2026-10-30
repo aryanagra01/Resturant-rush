@@ -9,8 +9,8 @@ public class RegularCustomer extends Customer {
     }
 
     @Override
-    public CustomerType getType() {
-        return CustomerType.REGULAR;
+    public String getType() {
+        return "Regular";
     }
 
     @Override

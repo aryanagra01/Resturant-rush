@@ -55,8 +55,8 @@ public abstract class Customer {
 
     // ---------- behaviour each subclass defines ----------
 
-    /** Which customer type this is, for display and descriptions. */
-    public abstract CustomerType getType();
+    // Short name shown next to the customer, for example "VIP".
+    public abstract String getType();
 
     /** Satisfaction points lost per turn while waiting for a table or food. */
     public abstract int getSatisfactionLoss();

@@ -13,9 +13,7 @@ public class Chef extends Staff {
 
     // Prepares one unit. Fails if the chef already acted or the order is not being prepared.
     public void prepareOrder(Order order, int turn) {
-        checkCanAct(turn);
         Objects.requireNonNull(order, "Order cannot be null.");
-        order.prepareOneUnit();
-        recordAction(turn);
+        performTask(turn, order::prepareOneUnit);
     }
 }

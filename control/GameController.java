@@ -59,32 +59,27 @@ public class GameController {
         processArrivals();
         view.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
 
-        // A refused choice is shown and asked again. recordAction runs only after
-        // the task succeeds, so a failed task does not use the turn.
-        boolean waiterFinished = false;
-        while (!waiterFinished) {
-            try {
-                processWaiterChoice();
-                waiterFinished = true;
-            } catch (GameRuleException ex) {
-                view.displayError(ex.getMessage());
-            }
-        }
-
-        boolean chefFinished = false;
-        while (!chefFinished) {
-            try {
-                processChefChoice();
-                chefFinished = true;
-            } catch (GameRuleException ex) {
-                view.displayError(ex.getMessage());
-            }
-        }
-
+        retryUntilValid(this::processWaiterChoice);
+        retryUntilValid(this::processChefChoice);
         processEating();
         processPayment();
         processSatisfactionAndAbandonment();
         view.displayTurnResults(restaurant, currentTurn, settings.getMaxTurns());
+    }
+
+    /**
+     * Runs one manager decision. If it breaks a game rule, the reason is shown and
+     * the manager chooses again. The staff task is not used up (see Staff.performTask).
+     */
+    private void retryUntilValid(Runnable decision) {
+        while (true) {
+            try {
+                decision.run();
+                return;
+            } catch (GameRuleException ex) {
+                view.displayError(ex.getMessage());
+            }
+        }
     }
 
     private void processArrivals() {

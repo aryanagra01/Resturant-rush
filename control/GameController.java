@@ -1,11 +1,9 @@
 package control;
 
 import config.GameSettings;
-import entities.customer.CriticCustomer;
 import entities.customer.Customer;
+import entities.customer.CustomerType;
 import entities.customer.Order;
-import entities.customer.RegularCustomer;
-import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
@@ -90,35 +88,31 @@ public class GameController {
     }
 
     private void processArrivals() {
-        int type = settings.arrivalOn(currentTurn);
-        if (type != GameSettings.NO_ARRIVAL) {
+        CustomerType type = settings.arrivalOn(currentTurn);
+        if (type != null) {
             admit(type);
         }
     }
 
-    private void admit(int type) {
+    private void admit(CustomerType type) {
         int id = nextCustomerId;
         nextCustomerId++;
-        String name = "Customer " + id;
-        Customer customer;
-        if (type == GameSettings.REGULAR) {
-            customer = new RegularCustomer(id, name);
-        } else if (type == GameSettings.VIP) {
-            customer = new VIPCustomer(id, name);
-        } else if (type == GameSettings.CRITIC) {
-            customer = new CriticCustomer(id, name);
-        } else {
-            throw new IllegalStateException("Unknown customer type.");
-        }
+        Customer customer = type.create(id, "Customer " + id);
         restaurant.addCustomer(customer);
         view.showArrival(customer);
     }
 
     private void processWaiterChoice() {
         int choice = view.readWaiterAction();
-        if (choice == 0) {
+        if (choice == GameView.WAITER_WAIT) {
             waiterWaits();
             return;
+        }
+        if (choice != GameView.WAITER_SEAT
+                && choice != GameView.WAITER_TAKE_ORDER
+                && choice != GameView.WAITER_SERVE) {
+            throw new GameRuleException(
+                    "Choose 0 to wait, 1 to seat, 2 to take an order, or 3 to serve.");
         }
 
         int customerId = view.readInt("Enter the customer id: ");
@@ -128,12 +122,15 @@ public class GameController {
         }
         Customer customer = found.get();
 
-        if (choice == 1) {
+        if (choice == GameView.WAITER_SEAT) {
             seatCustomer(customer);
-        } else if (choice == 2) {
+        } else if (choice == GameView.WAITER_TAKE_ORDER) {
             takeCustomerOrder(customer);
-        } else if (choice == 3) {
+        } else if (choice == GameView.WAITER_SERVE) {
             serveCustomer(customer);
+        } else {
+            throw new GameRuleException(
+                    "Choose 0 to wait, 1 to seat, 2 to take an order, or 3 to serve.");
         }
     }
 

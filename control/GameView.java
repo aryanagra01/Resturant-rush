@@ -23,6 +23,12 @@ public interface GameView {
     // Shows victory or defeat and the final statistics.
     void displayFinalResults(Restaurant restaurant, int maxTurns);
 
+    // Waiter choices. 0 waits, 1 seats, 2 takes an order and 3 serves.
+    int WAITER_WAIT = 0;
+    int WAITER_SEAT = 1;
+    int WAITER_TAKE_ORDER = 2;
+    int WAITER_SERVE = 3;
+
     // Reads one waiter action, asking again until the choice is 0 to 3.
     int readWaiterAction();
 

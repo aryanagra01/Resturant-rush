@@ -134,12 +134,13 @@ public class GameCLI implements GameView {
     public int readWaiterAction() {
         while (true) {
             say("%nWaiter actions:");
-            say("0. Wait");
-            say("1. Seat a waiting customer");
-            say("2. Take an order from a seated customer");
-            say("3. Serve an order that is ready");
+            say("%d. Wait", WAITER_WAIT);
+            say("%d. Seat a waiting customer", WAITER_SEAT);
+            say("%d. Take an order from a seated customer", WAITER_TAKE_ORDER);
+            say("%d. Serve an order that is ready", WAITER_SERVE);
             int choice = readInt("Choose a waiter action: ");
-            if (choice >= 0 && choice <= 3) {
+            if (choice == WAITER_WAIT || choice == WAITER_SEAT
+                    || choice == WAITER_TAKE_ORDER || choice == WAITER_SERVE) {
                 return choice;
             }
             displayError("Choose 0 to wait, 1 to seat, 2 to take an order, or 3 to serve.");

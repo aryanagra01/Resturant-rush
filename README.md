@@ -6,7 +6,7 @@ you try to reach the targets by the end of turn 18.
 
 **Repository:** https://github.com/aryanagra01/Resturant-rush
 
-The current Stage 2 code is on branch `staeg-2-cleanup`. It has 22 Java source files.
+The current Stage 2 code is on branch `staeg-2-cleanup`. It has 23 Java source files.
 The tags `stage-1` and `stage-2` are earlier snapshots. The cleanup on this branch is
 not part of the `stage-2` tag.
 
@@ -125,7 +125,7 @@ customers, orders and staff. Settings and shared checks sit beside those three.
 | `boundary` | `GameCLI` | Command-line implementation of `GameView`. Shows the state and reads the manager's input. It does not apply game rules |
 | `control` | `GameController`, `GameView` | `GameController` runs each turn, owns the Waiter, Chef and Cashier, and retries a refused choice. `GameView` is the interface a user interface implements |
 | `config` | `GameSettings` | One game's settings. `GameSettings.base()` is the required base setting, including arrivals and victory targets |
-| `entities.customer` | `Customer` (abstract), `RegularCustomer`, `VIPCustomer`, `CriticCustomer`, `CustomerStatus`, `Order`, `OrderStatus` | Shared seat, order, eat and pay flow. Subclasses override the type name, satisfaction loss, food choice, discount and service bonus. `Order` stores the dish, bill and the turn it was placed |
+| `entities.customer` | `Customer` (abstract), `CustomerType`, `RegularCustomer`, `VIPCustomer`, `CriticCustomer`, `CustomerStatus`, `Order`, `OrderStatus` | Shared seat, order, eat and pay flow. `CustomerType` creates the Regular, VIP or Critic customer. Subclasses override the type name, satisfaction loss, food choice, discount and service bonus. `Order` stores the dish, bill and the turn it was placed |
 | `entities.menu` | `MenuItem` | A dish: name, price in cents, and preparation units |
 | `entities.restaurant` | `Restaurant`, `Table`, `GameStats` | `Restaurant` manages the tables, customers, waiting queue and statistics. `GameStats` stores the totals and checks victory |
 | `entities.staff` | `Staff` (abstract), `Waiter`, `Chef`, `Cashier` | `Staff` allows one successful task per turn. Each subclass performs that role's task and records it only after it succeeds |
@@ -165,12 +165,13 @@ Compare: https://github.com/aryanagra01/Resturant-rush/compare/stage-1...stage-2
 | `Order.java` | Changed | Records `placedTurn`, which the Critic uses for the fast-service rule |
 | `Waiter.java` | Changed | The bill comes from `calculateBill`, so the VIP discount is applied by the customer. Serving calls `receiveFood`, which runs `onFoodServed` |
 | `Restaurant.java` | Changed | Food choice goes through `selectMenuItem`, which asks the customer |
-| `GameController.java` | Changed | Creates `RegularCustomer`, `VIPCustomer` or `CriticCustomer` for each arrival. The base setting uses a VIP on turn 4 and a Critic on turn 10 |
+| `CustomerType.java` | New | Creates the Regular, VIP or Critic customer, so the controller does not choose the class |
+| `GameController.java` | Changed | Asks `CustomerType` to create each arrival. The base setting uses a VIP on turn 4 and a Critic on turn 10 |
 | `GameCLI.java` | Changed | Shows each customer's type from `getType()` and prints the bill, including a VIP discount |
 
 The `stage-2` tag remains that earlier runnable snapshot. This branch later simplified
 the same behaviour. The cleanup removed helper classes that were no longer needed
-(`VictoryTargets`, `IdSequence`, `Money`, `WaiterAction` and `CustomerType`). Staff
+(`VictoryTargets`, `IdSequence`, `Money` and `WaiterAction`). `CustomerType` still creates each arrival. Staff
 check that they can act, perform the task, and record it only when it succeeds.
 Searching and the task descriptions use ordinary loops. Customer-specific behaviour
 stays in the overridden methods. Shared validation stays in `Require`, and the

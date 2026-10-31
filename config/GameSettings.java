@@ -1,5 +1,6 @@
 package config;
 
+import entities.customer.CustomerType;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import java.util.List;
@@ -9,23 +10,17 @@ import utility.Require;
 // One game's settings: turns, tables, menu, arrivals and victory requirements.
 // base() is the required setting from the assignment brief.
 public final class GameSettings {
-    // 0 means nobody arrives. The other numbers are the three customer subclasses.
-    public static final int NO_ARRIVAL = 0;
-    public static final int REGULAR = 1;
-    public static final int VIP = 2;
-    public static final int CRITIC = 3;
-
     private final int maxTurns;
     private final int tableCount;
     private final List<MenuItem> menu;
-    // Index is the turn number. Turn 0 is unused.
-    private final int[] arrivalTypes;
+    // Index is the turn number. Turn 0 is unused. Null means nobody arrives.
+    private final CustomerType[] arrivalTypes;
     private final int targetPaidCustomers;
     private final int targetRevenueCents;
     private final int targetAverageSatisfaction;
 
     public GameSettings(int maxTurns, int tableCount, List<MenuItem> menu,
-            int[] arrivalTypes, int targetPaidCustomers,
+            CustomerType[] arrivalTypes, int targetPaidCustomers,
             int targetRevenueCents, int targetAverageSatisfaction) {
         Require.validTurn(maxTurns, "Max turns");
         Require.argument(tableCount >= 1, "A game needs at least one table.");
@@ -34,11 +29,6 @@ public final class GameSettings {
         Objects.requireNonNull(arrivalTypes, "Arrivals cannot be null.");
         Require.argument(arrivalTypes.length == maxTurns + 1,
                 "Arrivals must cover turns 1 to " + maxTurns + ".");
-        for (int turn = 1; turn <= maxTurns; turn++) {
-            int type = arrivalTypes[turn];
-            Require.argument(type == NO_ARRIVAL || type == REGULAR || type == VIP || type == CRITIC,
-                    "Arrival on turn " + turn + " has an unknown customer type.");
-        }
         Require.notNegative(targetPaidCustomers, "Paid customers target");
         Require.notNegative(targetRevenueCents, "Revenue target");
         Require.notNegative(targetAverageSatisfaction, "Average satisfaction target");
@@ -46,7 +36,7 @@ public final class GameSettings {
         this.maxTurns = maxTurns;
         this.tableCount = tableCount;
         this.menu = List.copyOf(menu);
-        this.arrivalTypes = new int[arrivalTypes.length];
+        this.arrivalTypes = new CustomerType[arrivalTypes.length];
         for (int turn = 0; turn < arrivalTypes.length; turn++) {
             this.arrivalTypes[turn] = arrivalTypes[turn];
         }
@@ -60,15 +50,16 @@ public final class GameSettings {
     // Victory needs 4 paid customers, $45.00 revenue and average satisfaction 60.
     public static GameSettings base() {
         // Turns 1, 7, 13 and 16 are regular. Turn 4 is a VIP. Turn 10 is a critic.
-        int[] arrivals = new int[19];
-        arrivals[1] = REGULAR;
-        arrivals[4] = VIP;
-        arrivals[7] = REGULAR;
-        arrivals[10] = CRITIC;
-        arrivals[13] = REGULAR;
-        arrivals[16] = REGULAR;
+        int maxTurns = 18;
+        CustomerType[] arrivals = new CustomerType[maxTurns + 1];
+        arrivals[1] = CustomerType.REGULAR;
+        arrivals[4] = CustomerType.VIP;
+        arrivals[7] = CustomerType.REGULAR;
+        arrivals[10] = CustomerType.CRITIC;
+        arrivals[13] = CustomerType.REGULAR;
+        arrivals[16] = CustomerType.REGULAR;
         return new GameSettings(
-                18,
+                maxTurns,
                 2,
                 // Order matters: Regular customers pick by index (id mod menu size).
                 List.of(
@@ -97,10 +88,10 @@ public final class GameSettings {
         return menu;
     }
 
-    // The customer code arriving this turn, or NO_ARRIVAL when nobody comes.
-    public int arrivalOn(int turn) {
+    // The customer type arriving this turn, or null when nobody comes.
+    public CustomerType arrivalOn(int turn) {
         if (turn < 1 || turn > maxTurns) {
-            return NO_ARRIVAL;
+            return null;
         }
         return arrivalTypes[turn];
     }

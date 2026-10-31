@@ -2,7 +2,7 @@ package entities.menu;
 
 import utility.Require;
 
-/** One dish on the menu. Immutable once created. */
+// One dish on the menu. Its price and preparation time do not change.
 public class MenuItem {
     private final String name;
     private final int priceCents;
@@ -25,12 +25,12 @@ public class MenuItem {
         return name;
     }
 
-    /** The menu price in cents, before any discount. */
+    // The menu price in cents, before any discount.
     public int getPriceCents() {
         return priceCents;
     }
 
-    /** How many Chef turns this dish needs. */
+    // How many chef turns this dish needs.
     public int getPreparationUnits() {
         return preparationUnits;
     }

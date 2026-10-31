@@ -6,35 +6,59 @@ you try to reach the targets by the end of turn 18.
 
 **Repository:** https://github.com/aryanagra01/Resturant-rush
 
+The current Stage 2 code is on branch `staeg-2-cleanup`. It has 23 Java source files.
+The tags `stage-1` and `stage-2` are earlier snapshots. The cleanup on this branch is
+not part of the `stage-2` tag.
+
 ## Build and run
 
-Requires **Java 15 or newer** (the CLI uses text blocks). No libraries and no network
-access needed.
+Developed and tested with **Java 17**. The program uses text blocks and has no
+libraries or network access. Run the commands from the project folder.
+
+The commands in the first block use a Unix-style shell, such as bash:
 
 ```bash
-javac -d out $(find . -name "*.java" -not -path "./test/*")
-```
-```bash
+javac --release 17 -d out \
+  Main.java \
+  boundary/*.java \
+  config/*.java \
+  control/*.java \
+  entities/customer/*.java \
+  entities/menu/*.java \
+  entities/restaurant/*.java \
+  entities/staff/*.java \
+  utility/*.java
 java -cp out Main
 ```
 
-To run a specific stage, check out its tag first:
+Windows PowerShell, from the same folder:
 
-```bash
-git checkout stage-2
+```powershell
+javac --release 17 -d out Main.java boundary\*.java config\*.java control\*.java entities\customer\*.java entities\menu\*.java entities\restaurant\*.java entities\staff\*.java utility\*.java
+java -cp out Main
 ```
+
+To look at an earlier snapshot, check out its tag, for example `git checkout stage-2`.
+That tag does not include the later cleanup on `staeg-2-cleanup`.
 
 ## How to play
 
 Every turn the game shows the revenue, the average satisfaction of paid customers, the
 waiting queue, the tables, every customer's satisfaction and order status, and the tasks
-each staff member can do. Then:
+each staff member can do. Anyone scheduled for that turn arrives before the choices.
+Then:
 
 1. **Waiter:** choose one task by number: `0` wait, `1` seat a customer, `2` take an
-   order, `3` serve a ready order. Then enter the customer id.
-2. **Chef:** enter an order id to prepare one unit of it, or `0` to wait.
-3. **Cashier:** works automatically and takes one eligible payment per turn, oldest
-   first.
+   order, `3` serve a ready order. For 1, 2 or 3, enter the customer id.
+2. **Chef:** enter an order id to prepare one unit of it, or `0` to wait. Food finished
+   this turn can be served on a later turn.
+3. **Cashier:** works automatically and takes one eligible payment per turn. The oldest
+   ready customer is chosen first: the earliest turn served, then the smaller customer
+   id.
+
+After the Chef, a customer who has been eating since an earlier turn finishes eating.
+The Cashier can take that customer's payment on a later turn. Customers who are still
+waiting for a table or for food then lose satisfaction.
 
 An invalid choice is explained and you choose again. It does not use up the staff task.
 
@@ -65,52 +89,56 @@ freed.
 
 ## Tests
 
+There is no automated test class in this repository. Stage 2 was checked by compiling
+with Java 17 and replaying two local input scripts, one victory and one defeat. Each
+run's console output was compared byte for byte with a saved log. Those scripts and
+logs are shared with the group separately. They are not part of this repository.
+
+To repeat that check, compile as above, then run `Main` with a shared script as
+standard input and compare the output with the shared log.
+
+Unix-style shell:
+
 ```bash
-javac -d out $(find . -name "*.java")
-```
-```bash
-java -cp out Stage2Test
+java -cp out Main < /path/to/stage2-victory.txt > victory-output.txt
+cmp victory-output.txt /path/to/victory-expected.txt
 ```
 
-Expected: `46 passed, 0 failed`. The test cases and the two reproducible runs (one
-victory, one defeat, both including a VIP and a Critic) are described in
-[test/TEST_NOTES.md](test/TEST_NOTES.md). To replay a run by hand:
+PowerShell does not support `<`. From PowerShell, use Command Prompt redirection:
 
-```bash
-java -cp out Main < test/runs/stage2-victory.txt
+```powershell
+cmd /c "java -cp out Main < C:\path\to\stage2-victory.txt > C:\path\to\victory-output.txt"
+fc /b C:\path\to\victory-output.txt C:\path\to\victory-expected.txt
 ```
+
+Repeat the same steps with the shared defeat script. `cmp` and `fc /b` report no
+differences when the output matches the saved log.
 
 ## Project structure
 
+The program uses Boundary–Control–Entity separation. The boundary reads input and
+prints output. The control package runs the turns. The entities hold the restaurant,
+customers, orders and staff. Settings and shared checks sit beside those three.
+
 | Package | Classes | Responsibility |
 |---|---|---|
-| `boundary` | `GameCLI` | Command-line `GameView`: shows the state and reads the manager's input. No game rules |
-| `control` | `GameController`, `WaiterAction`, `GameView` | Runs the six turn steps in order, owns the staff, dispatches the Waiter's choice; `GameView` is the interface the controller needs from a UI |
-| `config` | `GameSettings` | One game's settings; `GameSettings.base()` is the required base setting |
-| `entities.restaurant` | `Restaurant`, `Table`, `GameStats`, `VictoryTargets` | Tables, queue, customers, statistics and the victory check |
-| `entities.customer` | `Customer` (abstract), `RegularCustomer`, `VIPCustomer`, `CriticCustomer`, `CustomerType`, `CustomerStatus`, `Order`, `OrderStatus` | Each customer type's behaviour, and the customer's order |
-| `entities.staff` | `Staff` (abstract), `Waiter`, `Chef`, `Cashier` | One task per turn (in `Staff`); each role's task |
-| `entities.menu` | `MenuItem` | A dish: name, price, preparation units |
-| `utility` | `Require`, `GameRuleException`, `IdSequence`, `Money` | Shared checks, the "refused choice" exception, id numbering, money formatting |
-| (root) | `Main` | Chooses the concrete classes and wires them together |
+| `boundary` | `GameCLI` | Command-line implementation of `GameView`. Shows the state and reads the manager's input. It does not apply game rules |
+| `control` | `GameController`, `GameView` | `GameController` runs each turn, owns the Waiter, Chef and Cashier, and retries a refused choice. `GameView` is the interface a user interface implements |
+| `config` | `GameSettings` | One game's settings. `GameSettings.base()` is the required base setting, including arrivals and victory targets |
+| `entities.customer` | `Customer` (abstract), `CustomerType`, `RegularCustomer`, `VIPCustomer`, `CriticCustomer`, `CustomerStatus`, `Order`, `OrderStatus` | Shared seat, order, eat and pay flow. `CustomerType` creates the Regular, VIP or Critic customer. Subclasses override the type name, satisfaction loss, food choice, discount and service bonus. `Order` stores the dish, bill and the turn it was placed |
+| `entities.menu` | `MenuItem` | A dish: name, price in cents, and preparation units |
+| `entities.restaurant` | `Restaurant`, `Table`, `GameStats` | `Restaurant` manages the tables, customers, waiting queue and statistics. `GameStats` stores the totals and checks victory |
+| `entities.staff` | `Staff` (abstract), `Waiter`, `Chef`, `Cashier` | `Staff` allows one successful task per turn. Each subclass performs that role's task and records it only after it succeeds |
+| `utility` | `Require`, `GameRuleException` | `Require` is the shared validation. `GameRuleException` is an invalid gameplay choice, which the controller shows and then asks again |
+| (root) | `Main` | Builds the base setting, the command-line view and the controller, then starts the game |
 
-Packages only depend downwards (`boundary` → `control` → `config` → `entities.*` →
-`utility`), so there are no cycles. Test Q08 checks this.
+`Customer` and `Staff` are abstract. Callers use a `Customer` reference, and the
+subclass methods supply the Regular, VIP or Critic behaviour. `GameCLI` is the only
+`GameView` implementation.
 
 ## Design diagrams
 
-PlantUML sources and rendered images are in [docs/diagrams](docs/diagrams):
-
-| Diagram | Source | Image |
-|---|---|---|
-| Class diagram (final Stage 2 design, coloured by package) | [class-diagram.puml](docs/diagrams/class-diagram.puml) | [PNG](docs/diagrams/class-diagram.png), [SVG](docs/diagrams/class-diagram.svg) |
-| Sequence diagram: VIP Customer 2 from arrival to payment, with the result check | [sequence-vip-order.puml](docs/diagrams/sequence-vip-order.puml) | [PNG](docs/diagrams/sequence-vip-order.png), [SVG](docs/diagrams/sequence-vip-order.svg) |
-
-To re-render after editing (needs PlantUML and Graphviz), from `docs/diagrams`:
-
-```bash
-PLANTUML_LIMIT_SIZE=16384 plantuml -tpng -tsvg *.puml
-```
+To be added.
 
 ## Stages
 
@@ -118,7 +146,10 @@ PLANTUML_LIMIT_SIZE=16384 plantuml -tpng -tsvg *.puml
 |---|---|---|
 | 1 | Regular customers, menu, Waiter, Chef, Cashier, full turn sequence, victory and defeat | `stage-1` |
 | 2 | VIP and Critic customers | `stage-2` |
-| 3 | Host, ComboMeal, Happy Hour | `stage-3` |
+| 3 | Host, ComboMeal, Happy Hour | Not tagged yet |
+
+`stage-1` and `stage-2` are unchanged snapshots. Stage 3 is planned and has not been
+implemented. The current cleanup is on `staeg-2-cleanup`, after the `stage-2` tag.
 
 ### Stage 1 → Stage 2
 
@@ -128,24 +159,27 @@ Compare: https://github.com/aryanagra01/Resturant-rush/compare/stage-1...stage-2
 
 | File | Change | Reason |
 |---|---|---|
-| `VIPCustomer.java` | New | Loses 5 per turn and gets 10% off |
-| `CriticCustomer.java` | New | Loses 12 per turn, prefers Pasta, rewards fast service |
-| `Customer.java` | Changed | Added overridable methods (`getSatisfactionLoss`, `chooseMenuItem`, `applyDiscount`, `onFoodServed`) so each type's behaviour is chosen by the customer object, not by type checks in the controller |
-| `Order.java` | Changed | Records `placedTurn`, needed for the Critic's fast-service rule |
-| `Waiter.java` | Changed | Bill now comes from the customer's own pricing (VIP discount); notifies the customer after serving |
-| `Restaurant.java` | Changed | Food choice moved from `Restaurant` to the customer object |
-| `GameController.java` | Changed | Turn 4 arrival is a VIP and turn 10 a Critic; shows the discounted bill |
-| `GameCLI.java` | Changed | Explains the three customer types and shows each customer's type |
+| `VIPCustomer.java` | New | Loses 5 per turn and gets 10% off through `applyDiscount` |
+| `CriticCustomer.java` | New | Loses 12 per turn, prefers Pasta in `pickMenuItem`, and `onFoodServed` adds 10 satisfaction for fast service |
+| `Customer.java` | Changed | Subclasses override `getType`, `getSatisfactionLoss`, `pickMenuItem`, `applyDiscount` and `onFoodServed`. Shared methods such as `chooseMenuItem` and `calculateBill` call those, so the controller does not branch on the customer type |
+| `Order.java` | Changed | Records `placedTurn`, which the Critic uses for the fast-service rule |
+| `Waiter.java` | Changed | The bill comes from `calculateBill`, so the VIP discount is applied by the customer. Serving calls `receiveFood`, which runs `onFoodServed` |
+| `Restaurant.java` | Changed | Food choice goes through `selectMenuItem`, which asks the customer |
+| `CustomerType.java` | New | Creates the Regular, VIP or Critic customer, so the controller does not choose the class |
+| `GameController.java` | Changed | Asks `CustomerType` to create each arrival. The base setting uses a VIP on turn 4 and a Critic on turn 10 |
+| `GameCLI.java` | Changed | Shows each customer's type from `getType()` and prints the bill, including a VIP discount |
 
-Stage 2 was then refactored for reuse, with no change in gameplay. The new, changed
-and deleted files, the reasons and the design trade-offs are in
-[docs/REFACTORING.md](docs/REFACTORING.md).
+The `stage-2` tag remains that earlier runnable snapshot. This branch later simplified
+the same behaviour. The cleanup removed helper classes that were no longer needed
+(`VictoryTargets`, `IdSequence`, `Money` and `WaiterAction`). `CustomerType` still creates each arrival. Staff
+check that they can act, perform the task, and record it only when it succeeds.
+Searching and the task descriptions use ordinary loops. Customer-specific behaviour
+stays in the overridden methods. Shared validation stays in `Require`, and the
+Boundary–Control–Entity split is unchanged.
 
 ### Stage 2 → Stage 3
 
-Compare: https://github.com/aryanagra01/Resturant-rush/compare/stage-2...stage-3
-
-*To be added with Stage 3.*
+To be added with Stage 3. There is no `stage-3` tag yet.
 
 ## Video
 

@@ -7,6 +7,7 @@ import entities.customer.Order;
 import entities.customer.RegularCustomer;
 import entities.customer.VIPCustomer;
 import entities.menu.MenuItem;
+import entities.pricing.HappyHour;
 import entities.restaurant.GameStats;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
@@ -66,6 +67,9 @@ public class GameCLI implements GameView {
         say("- Critic: loses %d satisfaction per turn while waiting or seated, prefers %s, and gains %d satisfaction if served within %d turns of ordering. Satisfaction cannot exceed 100.",
                 CriticCustomer.SATISFACTION_LOSS, CriticCustomer.PREFERRED_DISH,
                 CriticCustomer.FAST_SERVICE_BONUS, CriticCustomer.FAST_SERVICE_TURNS);
+        say("%nHappy Hour: once per game, at the start of a turn, you can switch it on for"
+                + " that turn and the next. Orders taken then get %d%% off, after any VIP"
+                + " discount.", HappyHour.DISCOUNT_PERCENT);
         say(TARGETS, maxTurns, stats.getTargetPaidCustomers(),
                 formatMoney(stats.getTargetRevenueCents()), stats.getTargetAverageSatisfaction());
         List<MenuItem> menu = restaurant.getMenu();
@@ -84,6 +88,7 @@ public class GameCLI implements GameView {
         printRevenueAndAverage(stats, false);
         say("Paid: %d | Served: %d | Unhappy departures: %d", stats.getPaidCount(),
                 stats.getServedCount(), stats.getUnhappyDepartures());
+        say("Happy Hour: %s", happyHourStatus(restaurant.getHappyHour()));
 
         say("%nWaiting queue:");
         printCustomers(restaurant.getWaitingCustomers(), "(empty)", false);
@@ -161,6 +166,17 @@ public class GameCLI implements GameView {
     }
 
     @Override
+    public boolean readHappyHourChoice() {
+        while (true) {
+            int choice = readInt("Start Happy Hour now? (1 = yes, 0 = no): ");
+            if (choice == 0 || choice == 1) {
+                return choice == 1;
+            }
+            displayError("Enter 1 to start Happy Hour or 0 to keep it for later.");
+        }
+    }
+
+    @Override
     public int readInt(String prompt) {
         while (true) {
             out.print(prompt);
@@ -186,6 +202,12 @@ public class GameCLI implements GameView {
     @Override
     public void showArrival(Customer c) {
         say("%s arrived and joined the waiting queue.", c.getName());
+    }
+
+    @Override
+    public void showHappyHourStarted(HappyHour happyHour) {
+        say("Happy Hour is on for this turn and the next: new orders get %d%% off.",
+                HappyHour.DISCOUNT_PERCENT);
     }
 
     @Override
@@ -282,6 +304,15 @@ public class GameCLI implements GameView {
     // The customer's order. Only called when the customer is known to have one.
     private static Order orderOf(Customer c) {
         return c.getOrder().orElseThrow();
+    }
+
+    // For example, "available (can be used once)", "on, last turn" or "used".
+    private static String happyHourStatus(HappyHour happyHour) {
+        if (happyHour.isActive()) {
+            return happyHour.getTurnsLeft() == 1 ? "on, last turn"
+                    : "on, " + happyHour.getTurnsLeft() + " turns left (this turn and the next)";
+        }
+        return happyHour.isAvailable() ? "available (can be used once)" : "used";
     }
 
     private static String dish(Order order) {

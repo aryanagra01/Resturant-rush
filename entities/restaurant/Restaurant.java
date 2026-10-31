@@ -5,13 +5,14 @@ import entities.customer.CustomerStatus;
 import entities.customer.Order;
 import entities.customer.OrderStatus;
 import entities.menu.MenuItem;
+import entities.pricing.HappyHour;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import utility.Require;
 
-// Tables, waiting queue, customers, menu and statistics.
+// Tables, waiting queue, customers, menu, statistics and Happy Hour.
 // Built from the values passed in. GameController owns the staff.
 // Getters return copies, so callers cannot change the restaurant's lists.
 public class Restaurant {
@@ -20,6 +21,7 @@ public class Restaurant {
     private final List<Customer> customers;
     private final List<MenuItem> menu;
     private final GameStats stats;
+    private final HappyHour happyHour;
 
     public Restaurant(List<MenuItem> menu, int tableCount, int targetPaidCustomers,
             int targetRevenueCents, int targetAverageSatisfaction) {
@@ -34,6 +36,7 @@ public class Restaurant {
         waitingQueue = new ArrayList<>();
         customers = new ArrayList<>();
         stats = new GameStats(targetPaidCustomers, targetRevenueCents, targetAverageSatisfaction);
+        happyHour = new HappyHour();
     }
 
     // Customers waiting for a table, in arrival order.
@@ -56,6 +59,10 @@ public class Restaurant {
 
     public GameStats getStats() {
         return stats;
+    }
+
+    public HappyHour getHappyHour() {
+        return happyHour;
     }
 
     public Optional<Customer> findCustomer(int customerId) {

@@ -2,6 +2,7 @@ package control;
 
 import entities.customer.Customer;
 import entities.customer.Order;
+import entities.pricing.HappyHour;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import entities.staff.Staff;
@@ -38,10 +39,15 @@ public interface GameView {
     // Reads a whole number, asking again if the input is not one.
     int readInt(String prompt);
 
+    // Asks whether to switch on Happy Hour now. True means yes.
+    boolean readHappyHourChoice();
+
     // Shows why a choice was refused.
     void displayError(String message);
 
     void showArrival(Customer customer);
+
+    void showHappyHourStarted(HappyHour happyHour);
 
     void showWaits(Staff staff);
 

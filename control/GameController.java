@@ -5,6 +5,7 @@ import entities.customer.Customer;
 import entities.customer.CustomerType;
 import entities.customer.Order;
 import entities.menu.MenuItem;
+import entities.pricing.HappyHour;
 import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import entities.staff.Cashier;
@@ -39,8 +40,8 @@ public class GameController {
         restaurant = settings.createRestaurant();
 
         // The base setting uses one waiter, one chef and one cashier.
-
-        waiter = new Waiter(1, "Waiter");
+        // The waiter applies Happy Hour to every order it takes.
+        waiter = new Waiter(1, "Waiter", restaurant.getHappyHour());
         chef = new Chef(2, "Chef");
         cashier = new Cashier(3, "Cashier");
     }
@@ -58,13 +59,14 @@ public class GameController {
     private void playTurn() {
         processArrivals();
         view.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
-
+        offerHappyHour();
         retryUntilValid(this::processWaiterChoice);
         retryUntilValid(this::processChefChoice);
         processEating();
         processPayment();
         processSatisfactionAndAbandonment();
         view.displayTurnResults(restaurant, currentTurn, settings.getMaxTurns());
+        restaurant.getHappyHour().endTurn();
     }
 
     /**
@@ -95,6 +97,16 @@ public class GameController {
         Customer customer = type.create(id, "Customer " + id);
         restaurant.addCustomer(customer);
         view.showArrival(customer);
+    }
+
+    // At the start of a turn the manager may switch on Happy Hour, once per game.
+    // The game state is shown first, so the manager can see the queue before deciding.
+    private void offerHappyHour() {
+        HappyHour happyHour = restaurant.getHappyHour();
+        if (happyHour.isAvailable() && view.readHappyHourChoice()) {
+            happyHour.activate();
+            view.showHappyHourStarted(happyHour);
+        }
     }
 
     private void processWaiterChoice() {

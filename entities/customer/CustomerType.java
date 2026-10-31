@@ -1,6 +1,6 @@
 package entities.customer;
 
-// The three customer types. Each constant creates its own subclass.
+/** The three customer types. Each constant creates its own subclass. */
 public enum CustomerType {
     REGULAR {
         @Override
@@ -21,6 +21,6 @@ public enum CustomerType {
         }
     };
 
-    // Creates a customer of this type.
+    /** Creates a customer of this type. */
     public abstract Customer create(int customerId, String name);
 }

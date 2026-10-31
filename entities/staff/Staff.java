@@ -3,7 +3,9 @@ package entities.staff;
 import java.util.function.Supplier;
 import utility.Require;
 
-// Every role does at most one successful task per turn. A failed task does not use the turn.
+/**
+ * Every role does at most one successful task per turn. A failed task does not use the turn.
+ */
 public abstract class Staff {
     private static final int NOT_ACTED = -1;
 
@@ -28,7 +30,7 @@ public abstract class Staff {
         return name;
     }
 
-    // True when this staff member has not finished a task this turn.
+    /** True when this staff member has not finished a task this turn. */
     public boolean canAct(int turn) {
         return turn >= 1 && lastActionTurn != turn;
     }

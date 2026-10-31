@@ -7,15 +7,17 @@ import java.util.List;
 import java.util.Objects;
 import utility.Require;
 
-// Takes at most one payment per turn, oldest customer first.
-// The controller records the revenue after a successful payment.
+/**
+ * Takes at most one payment per turn, oldest customer first.
+ * The controller records the revenue after a successful payment.
+ */
 public class Cashier extends Staff {
 
     public Cashier(int staffId, String name) {
         super(staffId, name);
     }
 
-    // Selects the oldest eligible customer. The smaller customer id breaks a tie.
+    /** Selects the oldest eligible customer. The smaller customer id breaks a tie. */
     public Customer chooseNextPayer(List<Customer> candidates) {
         Objects.requireNonNull(candidates, "Candidates cannot be null.");
         if (candidates.isEmpty()) {
@@ -35,7 +37,7 @@ public class Cashier extends Staff {
         return oldest;
     }
 
-    // Charges the customer and frees their table. Fails if they cannot pay this turn.
+    /** Charges the customer and frees their table. Fails if they cannot pay this turn. */
     public void processPayment(Customer customer, Table table, int turn) {
         performTask(turn, () -> {
             Objects.requireNonNull(customer, "Customer cannot be null.");

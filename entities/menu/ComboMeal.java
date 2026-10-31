@@ -25,7 +25,7 @@ public class ComboMeal extends MenuItem {
         this.second = second;
     }
 
-    // Checks both items before the superclass constructor uses them.
+    /** Checks both items before the superclass constructor uses them. */
     private static String nameOf(MenuItem first, MenuItem second) {
         Objects.requireNonNull(first, "First item cannot be null.");
         Objects.requireNonNull(second, "Second item cannot be null.");

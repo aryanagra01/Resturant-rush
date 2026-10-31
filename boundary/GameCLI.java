@@ -18,8 +18,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
 
-// Command-line implementation of GameView.
-// It does not apply game rules. It asks the domain objects and turns the answers into text.
+/**
+ * Command-line implementation of GameView.
+ * It does not apply game rules. It asks the domain objects and turns the answers into text.
+ */
 public class GameCLI implements GameView {
     private static final String WELCOME = """
             ========================================
@@ -46,13 +48,13 @@ public class GameCLI implements GameView {
     private final Scanner in;
     private final PrintStream out;
 
-    // For example, new GameCLI(new Scanner(System.in), System.out).
+    /** For example, new GameCLI(new Scanner(System.in), System.out). */
     public GameCLI(Scanner in, PrintStream out) {
         this.in = Objects.requireNonNull(in, "Input cannot be null.");
         this.out = Objects.requireNonNull(out, "Output cannot be null.");
     }
 
-    // Prints one formatted line. Used for every line the game prints.
+    /** Prints one formatted line. Used for every line the game prints. */
     private void say(String format, Object... args) {
         out.println(String.format(format, args));
     }
@@ -181,8 +183,10 @@ public class GameCLI implements GameView {
         return choice == 0 ? 0 : waitingCustomers.get(choice - 1).getCustomerId();
     }
 
-    // Reads 0 (wait) or an option number from 1 to the number of options, asking
-    // again with an explanation until the number is on the menu.
+    /**
+     * Reads 0 (wait) or an option number from 1 to the number of options, asking
+     * again with an explanation until the number is on the menu.
+     */
     private int readMenuNumber(String question, int options) {
         String range = options == 0 ? "0 = wait"
                 : options == 1 ? "0 = wait, or 1" : "0 = wait, or 1-" + options;
@@ -320,8 +324,10 @@ public class GameCLI implements GameView {
                 ? " (need " + stats.getTargetAverageSatisfaction() + ")" : "");
     }
 
-    // Example: Customer 2 (VIP) | Seated | Satisfaction: 90 | Order 2: Burger $13.50 (Placed, 0/1)
-    // The type name comes from the customer object.
+    /**
+     * Example: Customer 2 (VIP) | Seated | Satisfaction: 90 | Order 2: Burger $13.50 (Placed, 0/1)
+     * The type name comes from the customer object.
+     */
     private static String customerLine(Customer c, boolean details) {
         String name = c.getName() + " (" + c.getType() + ")";
         String satisfaction = "Satisfaction: " + c.getSatisfaction();
@@ -339,12 +345,12 @@ public class GameCLI implements GameView {
         return String.join(" | ", name, status(c.getStatus()), satisfaction, orderText);
     }
 
-    // The customer's order. Only called when the customer is known to have one.
+    /** The customer's order. Only called when the customer is known to have one. */
     private static Order orderOf(Customer c) {
         return c.getOrder().orElseThrow();
     }
 
-    // For example, "available (can be used once)", "on, last turn" or "used".
+    /** For example, "available (can be used once)", "on, last turn" or "used". */
     private static String happyHourStatus(HappyHour happyHour) {
         if (happyHour.isActive()) {
             return happyHour.getTurnsLeft() == 1 ? "on, last turn"
@@ -357,31 +363,33 @@ public class GameCLI implements GameView {
         return order.getMenuItem().getName();
     }
 
-    // For example, "1/2".
+    /** For example, "1/2". */
     private static String progress(Order order) {
         return order.getPreparedUnits() + "/" + order.getMenuItem().getPreparationUnits();
     }
 
-    // Formats cents as dollars. For example, 1350 becomes "$13.50".
+    /** Formats cents as dollars. For example, 1350 becomes "$13.50". */
     private static String formatMoney(int cents) {
         int dollars = cents / 100;
         int remainder = Math.abs(cents % 100);
         return String.format("$%d.%02d", dollars, remainder);
     }
 
-    // For example, "1 preparation unit" or "2 preparation units".
+    /** For example, "1 preparation unit" or "2 preparation units". */
     private static String units(int count) {
         return count + " preparation unit" + (count == 1 ? "" : "s");
     }
 
-    // Turns READY_TO_PAY into "Ready to pay". Used for both customer and order status.
+    /** Turns READY_TO_PAY into "Ready to pay". Used for both customer and order status. */
     private static String status(Enum<?> status) {
         String words = status.name().toLowerCase().replace("_", " ");
         return Character.toUpperCase(words.charAt(0)) + words.substring(1);
     }
 
-    // Uses the same customer checks as the waiter, so the hints match the rules.
-    // Example: Wait; seat Customer 1; take order from Customer 2
+    /**
+     * Uses the same customer checks as the waiter, so the hints match the rules.
+     * Example: Wait; seat Customer 1; take order from Customer 2
+     */
     private static String describeWaiterTasks(Restaurant restaurant) {
         StringBuilder text = new StringBuilder("Wait");
         appendSeatingTasks(text, restaurant);
@@ -397,14 +405,14 @@ public class GameCLI implements GameView {
         return text.toString();
     }
 
-    // Example: Wait; seat Customer 1
+    /** Example: Wait; seat Customer 1 */
     private static String describeHostTasks(Restaurant restaurant) {
         StringBuilder text = new StringBuilder("Wait");
         appendSeatingTasks(text, restaurant);
         return text.toString();
     }
 
-    // Both the host and the waiter can seat anyone in the queue while a table is free.
+    /** Both the host and the waiter can seat anyone in the queue while a table is free. */
     private static void appendSeatingTasks(StringBuilder text, Restaurant restaurant) {
         if (restaurant.findAvailableTable().isPresent()) {
             List<Customer> waiting = restaurant.getWaitingCustomers();
@@ -414,7 +422,7 @@ public class GameCLI implements GameView {
         }
     }
 
-    // Example: Wait; prepare order 1 (Pasta 1/2)
+    /** Example: Wait; prepare order 1 (Pasta 1/2) */
     private static String describeChefTasks(Restaurant restaurant) {
         StringBuilder text = new StringBuilder("Wait");
         List<Customer> preparing = restaurant.getCustomersWithOrdersToPrepare();

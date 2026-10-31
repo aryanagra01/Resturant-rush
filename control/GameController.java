@@ -19,9 +19,11 @@ import java.util.Objects;
 import java.util.Optional;
 import utility.GameRuleException;
 
-// Runs each turn in the order required by the assignment.
-// The domain objects apply their own rules and the view formats the text.
-// Only GameRuleException is a refused choice. Any other exception stops the game.
+/**
+ * Runs each turn in the order required by the assignment.
+ * The domain objects apply their own rules and the view formats the text.
+ * Only GameRuleException is a refused choice. Any other exception stops the game.
+ */
 public class GameController {
     private static final int CHEF_WAIT = 0;
     private static final int HOST_WAIT = 0;
@@ -33,11 +35,11 @@ public class GameController {
     private final Waiter waiter;
     private final Chef chef;
     private final Cashier cashier;
-    // Customer ids start at 1 and increase by one for each arrival.
+    /** Customer ids start at 1 and increase by one for each arrival. */
     private int nextCustomerId = 1;
     private int currentTurn;
 
-    // The restaurant is built from these settings, so the two always match.
+    /** The restaurant is built from these settings, so the two always match. */
     public GameController(GameSettings settings, GameView view) {
         this.settings = Objects.requireNonNull(settings, "Settings cannot be null.");
         this.view = Objects.requireNonNull(view, "View cannot be null.");
@@ -51,7 +53,7 @@ public class GameController {
         host = new Host(4, "Host");
     }
 
-    // Plays every turn, then shows victory or defeat.
+    /** Plays every turn, then shows victory or defeat. */
     public void startGame() {
         int maxTurns = settings.getMaxTurns();
         view.displayWelcome(restaurant, maxTurns);
@@ -106,8 +108,10 @@ public class GameController {
         view.showArrival(customer);
     }
 
-    // At the start of a turn the manager may switch on Happy Hour, once per game.
-    // The game state is shown first, so the manager can see the queue before deciding.
+    /**
+     * At the start of a turn the manager may switch on Happy Hour, once per game.
+     * The game state is shown first, so the manager can see the queue before deciding.
+     */
     private void offerHappyHour() {
         HappyHour happyHour = restaurant.getHappyHour();
         if (happyHour.isAvailable() && view.readHappyHourChoice()) {
@@ -116,8 +120,10 @@ public class GameController {
         }
     }
 
-    // During each Happy Hour turn, customers still waiting for a table or food
-    // recover satisfaction at the start of the turn.
+    /**
+     * During each Happy Hour turn, customers still waiting for a table or food
+     * recover satisfaction at the start of the turn.
+     */
     private void processHappyHourRecovery() {
         if (!restaurant.getHappyHour().isActive()) {
             return;
@@ -134,8 +140,10 @@ public class GameController {
         }
     }
 
-    // The host seats at most one waiting customer, before the waiter acts. The host
-    // is only asked when someone is waiting and a table is free.
+    /**
+     * The host seats at most one waiting customer, before the waiter acts. The host
+     * is only asked when someone is waiting and a table is free.
+     */
     private void processHostChoice() {
         List<Customer> waiting = restaurant.getWaitingCustomers();
         if (waiting.isEmpty() || restaurant.findAvailableTable().isEmpty()) {
@@ -185,17 +193,17 @@ public class GameController {
         }
     }
 
-    // Waiter choice 0: the waiter waits.
+    /** Waiter choice 0: the waiter waits. */
     void waiterWaits() {
         view.showWaits(waiter);
     }
 
-    // Waiter choice 1: seat a waiting customer.
+    /** Waiter choice 1: seat a waiting customer. */
     void seatCustomer(Customer customer) {
         seat(waiter, customer);
     }
 
-    // Seating is the same for the host and the waiter.
+    /** Seating is the same for the host and the waiter. */
     private void seat(FrontOfHouseStaff seater, Customer customer) {
         Optional<Table> freeTable = restaurant.findAvailableTable();
         if (freeTable.isEmpty()) {
@@ -207,21 +215,21 @@ public class GameController {
         view.showSeated(seater, customer, table);
     }
 
-    // Waiter choice 2: take an order. The customer chooses the food.
+    /** Waiter choice 2: take an order. The customer chooses the food. */
     void takeCustomerOrder(Customer customer) {
         MenuItem item = restaurant.selectMenuItem(customer);
         Order order = waiter.takeOrder(customer, item, currentTurn);
         view.showOrderTaken(customer, order);
     }
 
-    // Waiter choice 3: serve an order that is ready.
+    /** Waiter choice 3: serve an order that is ready. */
     void serveCustomer(Customer customer) {
         waiter.serveOrder(customer, currentTurn);
         restaurant.recordService();
         view.showServed(customer);
     }
 
-    // The chef acts after the waiter, so food finished now is served on a later turn.
+    /** The chef acts after the waiter, so food finished now is served on a later turn. */
     private void processChefChoice() {
         int choice = view.readChefChoice(restaurant.getCustomersWithOrdersToPrepare());
         if (choice == CHEF_WAIT) {
@@ -249,8 +257,10 @@ public class GameController {
         }
     }
 
-    // Customers who became ready to pay this turn cannot pay yet.
-    // If a payment is refused, the next oldest customer is tried.
+    /**
+     * Customers who became ready to pay this turn cannot pay yet.
+     * If a payment is refused, the next oldest customer is tried.
+     */
     private void processPayment() {
         List<Customer> customers = restaurant.getCustomers();
         ArrayList<Customer> candidates = new ArrayList<Customer>();
@@ -272,7 +282,7 @@ public class GameController {
         }
     }
 
-    // The only place a customer is charged. Payment and revenue are recorded together.
+    /** The only place a customer is charged. Payment and revenue are recorded together. */
     private void checkout(Customer payer) {
         // A customer who is ready to pay should still be at a table. If not, it is a bug.
         Optional<Table> found = restaurant.findTableByCustomer(payer);
@@ -285,7 +295,9 @@ public class GameController {
         view.showPayment(payer);
     }
 
-    // Updates satisfaction for customers waiting for service, then removes anyone at 0.
+    /**
+     * Updates satisfaction for customers waiting for service, then removes anyone at 0.
+     */
     private void processSatisfactionAndAbandonment() {
         List<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {

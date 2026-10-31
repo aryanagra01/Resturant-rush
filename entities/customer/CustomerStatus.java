@@ -1,7 +1,9 @@
 package entities.customer;
 
-// The stages a customer goes through.
-// Waiting and seated customers are still waiting for service.
+/**
+ * The stages a customer goes through.
+ * Waiting and seated customers are still waiting for service.
+ */
 public enum CustomerStatus {
     WAITING(true),
     SEATED(true),
@@ -16,7 +18,7 @@ public enum CustomerStatus {
         this.awaitingService = awaitingService;
     }
 
-    // True while the customer is waiting for a table or for food.
+    /** True while the customer is waiting for a table or for food. */
     public boolean isAwaitingService() {
         return awaitingService;
     }

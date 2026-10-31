@@ -8,13 +8,15 @@ import java.util.List;
 import java.util.Objects;
 import utility.Require;
 
-// One game's settings: turns, tables, menu, arrivals and victory requirements.
-// base() is the required setting from the assignment brief.
+/**
+ * One game's settings: turns, tables, menu, arrivals and victory requirements.
+ * base() is the required setting from the assignment brief.
+ */
 public final class GameSettings {
     private final int maxTurns;
     private final int tableCount;
     private final List<MenuItem> menu;
-    // Index is the turn number. Turn 0 is unused. Null means nobody arrives.
+    /** Index is the turn number. Turn 0 is unused. Null means nobody arrives. */
     private final CustomerType[] arrivalTypes;
     private final int targetPaidCustomers;
     private final int targetRevenueCents;
@@ -46,9 +48,11 @@ public final class GameSettings {
         this.targetAverageSatisfaction = targetAverageSatisfaction;
     }
 
-    // 18 turns, 2 tables, Salad/Pasta/Burger and their three combos.
-    // Arrivals on turns 1, 4, 7, 10, 13 and 16. Turn 4 is a VIP and turn 10 is a Critic.
-    // Victory needs 4 paid customers, $45.00 revenue and average satisfaction 60.
+    /**
+     * 18 turns, 2 tables, Salad/Pasta/Burger and their three combos.
+     * Arrivals on turns 1, 4, 7, 10, 13 and 16. Turn 4 is a VIP and turn 10 is a Critic.
+     * Victory needs 4 paid customers, $45.00 revenue and average satisfaction 60.
+     */
     public static GameSettings base() {
         // Turns 1, 7, 13 and 16 are regular. Turn 4 is a VIP. Turn 10 is a critic.
         int maxTurns = 18;
@@ -79,7 +83,7 @@ public final class GameSettings {
                 4, 4500, 60);
     }
 
-    // A fresh restaurant built from these settings.
+    /** A fresh restaurant built from these settings. */
     public Restaurant createRestaurant() {
         return new Restaurant(menu, tableCount, targetPaidCustomers, targetRevenueCents,
                 targetAverageSatisfaction);
@@ -97,7 +101,7 @@ public final class GameSettings {
         return menu;
     }
 
-    // The customer type arriving this turn, or null when nobody comes.
+    /** The customer type arriving this turn, or null when nobody comes. */
     public CustomerType arrivalOn(int turn) {
         if (turn < 1 || turn > maxTurns) {
             return null;

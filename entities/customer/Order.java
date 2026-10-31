@@ -4,8 +4,10 @@ import entities.menu.MenuItem;
 import java.util.Objects;
 import utility.Require;
 
-// One customer's order. The bill is fixed when the order is taken.
-// Only the customer may serve, pay or cancel it. The chef only prepares one unit.
+/**
+ * One customer's order. The bill is fixed when the order is taken.
+ * Only the customer may serve, pay or cancel it. The chef only prepares one unit.
+ */
 public class Order {    
     private final int orderId;
     private final MenuItem menuItem;
@@ -44,7 +46,7 @@ public class Order {
         return status;
     }
 
-    // The bill in cents, after any discount, fixed when the order was taken.
+    /** The bill in cents, after any discount, fixed when the order was taken. */
     public int getBillCents() {
         return billCents;
     }
@@ -65,7 +67,7 @@ public class Order {
         return status == OrderStatus.READY;
     }
 
-    // Prepares one unit. The order becomes ready when the last unit is done.
+    /** Prepares one unit. The order becomes ready when the last unit is done. */
     public void prepareOneUnit() {
         Require.rule(needsPreparation(), "Only a placed or preparing order can be prepared.");
 
@@ -76,19 +78,19 @@ public class Order {
         }
     }
 
-    // Marks the order served. Only Customer.receiveFood calls this.
+    /** Marks the order served. Only Customer.receiveFood calls this. */
     void serve() {
         Require.status(status, OrderStatus.READY, "Order", "be served");
         status = OrderStatus.SERVED;
     }
 
-    // Marks the order paid. Only Customer.pay calls this.
+    /** Marks the order paid. Only Customer.pay calls this. */
     void markPaid() {
         Require.status(status, OrderStatus.SERVED, "Order", "be paid");
         status = OrderStatus.PAID;
     }
 
-    // Cancels an unfinished order. Only Customer.cancelUnfinishedOrder calls this.
+    /** Cancels an unfinished order. Only Customer.cancelUnfinishedOrder calls this. */
     void cancel() {
         Require.state(isUnfinished(), "Only an unfinished order can be cancelled.");
         status = OrderStatus.CANCELLED;

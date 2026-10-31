@@ -10,6 +10,8 @@ import entities.restaurant.Restaurant;
 import entities.restaurant.Table;
 import entities.staff.Cashier;
 import entities.staff.Chef;
+import entities.staff.FrontOfHouseStaff;
+import entities.staff.Host;
 import entities.staff.Waiter;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +24,12 @@ import utility.GameRuleException;
 // Only GameRuleException is a refused choice. Any other exception stops the game.
 public class GameController {
     private static final int CHEF_WAIT = 0;
+    private static final int HOST_WAIT = 0;
 
     private final GameSettings settings;
     private final Restaurant restaurant;
     private final GameView view;
+    private final Host host;
     private final Waiter waiter;
     private final Chef chef;
     private final Cashier cashier;
@@ -39,11 +43,12 @@ public class GameController {
         this.view = Objects.requireNonNull(view, "View cannot be null.");
         restaurant = settings.createRestaurant();
 
-        // The base setting uses one waiter, one chef and one cashier.
+        // The base setting's waiter, chef and cashier, plus the host added in Stage 3.
         // The waiter applies Happy Hour to every order it takes.
         waiter = new Waiter(1, "Waiter", restaurant.getHappyHour());
         chef = new Chef(2, "Chef");
         cashier = new Cashier(3, "Cashier");
+        host = new Host(4, "Host");
     }
 
     // Plays every turn, then shows victory or defeat.
@@ -61,6 +66,7 @@ public class GameController {
         view.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
         offerHappyHour();
         processHappyHourRecovery();
+        retryUntilValid(this::processHostChoice);
         retryUntilValid(this::processWaiterChoice);
         retryUntilValid(this::processChefChoice);
         processEating();
@@ -128,6 +134,25 @@ public class GameController {
         }
     }
 
+    // The host seats at most one waiting customer, before the waiter acts. The host
+    // is only asked when someone is waiting and a table is free.
+    private void processHostChoice() {
+        List<Customer> waiting = restaurant.getWaitingCustomers();
+        if (waiting.isEmpty() || restaurant.findAvailableTable().isEmpty()) {
+            return;
+        }
+        int customerId = view.readHostChoice(waiting);
+        if (customerId == HOST_WAIT) {
+            view.showWaits(host);
+            return;
+        }
+        Optional<Customer> found = restaurant.findCustomer(customerId);
+        if (found.isEmpty()) {
+            throw new GameRuleException("No customer has id " + customerId + ".");
+        }
+        seat(host, found.get());
+    }
+
     private void processWaiterChoice() {
         int choice = view.readWaiterAction();
         if (choice == GameView.WAITER_WAIT) {
@@ -167,14 +192,19 @@ public class GameController {
 
     // Waiter choice 1: seat a waiting customer.
     void seatCustomer(Customer customer) {
+        seat(waiter, customer);
+    }
+
+    // Seating is the same for the host and the waiter.
+    private void seat(FrontOfHouseStaff seater, Customer customer) {
         Optional<Table> freeTable = restaurant.findAvailableTable();
         if (freeTable.isEmpty()) {
             throw new GameRuleException("No table is available.");
         }
         Table table = freeTable.get();
-        waiter.seatCustomer(customer, table, currentTurn);
+        seater.seatCustomer(customer, table, currentTurn);
         restaurant.removeFromWaitingQueue(customer);
-        view.showSeated(customer, table);
+        view.showSeated(seater, customer, table);
     }
 
     // Waiter choice 2: take an order. The customer chooses the food.

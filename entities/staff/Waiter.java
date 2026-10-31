@@ -5,12 +5,12 @@ import entities.customer.CustomerStatus;
 import entities.customer.Order;
 import entities.menu.MenuItem;
 import entities.pricing.PricingPolicy;
-import entities.restaurant.Table;
 import java.util.Objects;
 import utility.Require;
 
-// Seats customers, takes orders and serves ready food. One task per turn.
-public class Waiter extends Staff {
+// Seats customers (see FrontOfHouseStaff), takes orders and serves ready food.
+// One task per turn.
+public class Waiter extends FrontOfHouseStaff {
     // Order ids start at 1 and increase by one for each order this waiter takes.
     private int nextOrderId = 1;
     private final PricingPolicy pricing;
@@ -27,19 +27,6 @@ public class Waiter extends Staff {
     public Waiter(int staffId, String name, PricingPolicy pricing) {
         super(staffId, name);
         this.pricing = Objects.requireNonNull(pricing, "Pricing cannot be null.");
-    }
-
-    // Seats a waiting customer at a free table. The controller then removes them from the queue.
-    public void seatCustomer(Customer customer, Table table, int turn) {
-        performTask(turn, () -> {
-            Objects.requireNonNull(customer, "Customer cannot be null.");
-            Objects.requireNonNull(table, "Table cannot be null.");
-            Require.rule(customer.canBeSeated(), "Only a waiting customer can be seated.");
-            Require.rule(table.isAvailable(), "Table is already occupied.");
-
-            table.occupy(customer);
-            customer.seat();
-        });
     }
 
     // Takes a seated customer's order. The customer's own discount (VIP) comes first,

@@ -39,6 +39,10 @@ public interface GameView {
     // Reads a whole number, asking again if the input is not one.
     int readInt(String prompt);
 
+    // Shows the waiting customers and reads the one to seat.
+    // Returns the chosen customer's id, or 0 to wait.
+    int readHostChoice(List<Customer> waitingCustomers);
+
     // Asks whether to switch on Happy Hour now. True means yes.
     boolean readHappyHourChoice();
 
@@ -54,7 +58,8 @@ public interface GameView {
 
     void showWaits(Staff staff);
 
-    void showSeated(Customer customer, Table table);
+    // seater is the staff member who seated the customer: the host or the waiter.
+    void showSeated(Staff seater, Customer customer, Table table);
 
     void showOrderTaken(Customer customer, Order order);
 

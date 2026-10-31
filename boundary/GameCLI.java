@@ -26,7 +26,8 @@ public class GameCLI implements GameView {
             Restaurant Rush
             ========================================
             You are the manager. The game runs for %d turns.
-            Each turn the waiter and the chef can each do one task, or wait.
+            Each turn the host can seat one waiting customer, and the waiter and the
+            chef can each do one task, or wait.
             The cashier automatically takes one eligible payment per turn.
             Customers choose their own food.
             An invalid choice is explained, and you can choose again.
@@ -111,6 +112,7 @@ public class GameCLI implements GameView {
         printCustomers(restaurant.getCustomers(), "(none)", true);
 
         say("%nAvailable staff tasks:");
+        say("  Host: %s", describeHostTasks(restaurant));
         say("  Waiter: %s", describeWaiterTasks(restaurant));
         say("  Chef: %s", describeChefTasks(restaurant));
         say("  Cashier: Automatically collects one eligible payment per turn.");
@@ -165,6 +167,32 @@ public class GameCLI implements GameView {
                     order.getOrderId(), customer.getName(), dish(order), progress(order));
         }
         return readInt("Choose a chef action (0 = wait, or an order id): ");
+    }
+
+    @Override
+    public int readHostChoice(List<Customer> waitingCustomers) {
+        say("%nHost actions:");
+        say("0. Wait");
+        for (int i = 0; i < waitingCustomers.size(); i++) {
+            say("%d. Seat %s", i + 1, waitingCustomers.get(i).getName());
+        }
+        int choice = readMenuNumber("Choose a host action", waitingCustomers.size());
+        return choice == 0 ? 0 : waitingCustomers.get(choice - 1).getCustomerId();
+    }
+
+    // Reads 0 (wait) or an option number from 1 to the number of options, asking
+    // again with an explanation until the number is on the menu.
+    private int readMenuNumber(String question, int options) {
+        String range = options == 0 ? "0 = wait"
+                : options == 1 ? "0 = wait, or 1" : "0 = wait, or 1-" + options;
+        while (true) {
+            int choice = readInt(question + " (" + range + "): ");
+            if (choice >= 0 && choice <= options) {
+                return choice;
+            }
+            displayError(options == 0 ? "Only 0 (wait) is possible right now."
+                    : "Choose 0 to wait, or a number from 1 to " + options + ".");
+        }
     }
 
     @Override
@@ -224,8 +252,9 @@ public class GameCLI implements GameView {
     }
 
     @Override
-    public void showSeated(Customer c, Table table) {
-        say("The waiter seated %s at table %d.", c.getName(), table.getTableId());
+    public void showSeated(Staff seater, Customer c, Table table) {
+        say("The %s seated %s at table %d.", seater.getName().toLowerCase(), c.getName(),
+                table.getTableId());
     }
 
     @Override
@@ -354,12 +383,7 @@ public class GameCLI implements GameView {
     // Example: Wait; seat Customer 1; take order from Customer 2
     private static String describeWaiterTasks(Restaurant restaurant) {
         StringBuilder text = new StringBuilder("Wait");
-        if (restaurant.findAvailableTable().isPresent()) {
-            List<Customer> waiting = restaurant.getWaitingCustomers();
-            for (int i = 0; i < waiting.size(); i++) {
-                text.append("; seat ").append(waiting.get(i).getName());
-            }
-        }
+        appendSeatingTasks(text, restaurant);
         List<Customer> customers = restaurant.getCustomers();
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
@@ -370,6 +394,23 @@ public class GameCLI implements GameView {
             }
         }
         return text.toString();
+    }
+
+    // Example: Wait; seat Customer 1
+    private static String describeHostTasks(Restaurant restaurant) {
+        StringBuilder text = new StringBuilder("Wait");
+        appendSeatingTasks(text, restaurant);
+        return text.toString();
+    }
+
+    // Both the host and the waiter can seat anyone in the queue while a table is free.
+    private static void appendSeatingTasks(StringBuilder text, Restaurant restaurant) {
+        if (restaurant.findAvailableTable().isPresent()) {
+            List<Customer> waiting = restaurant.getWaitingCustomers();
+            for (int i = 0; i < waiting.size(); i++) {
+                text.append("; seat ").append(waiting.get(i).getName());
+            }
+        }
     }
 
     // Example: Wait; prepare order 1 (Pasta 1/2)

@@ -33,7 +33,8 @@ public interface GameView {
     // Reads one waiter action, asking again until the choice is 0 to 3.
     int readWaiterAction();
 
-    // Shows the orders the chef can work on and reads an order id. 0 means wait.
+    // Shows the orders the chef can work on, numbered 1, 2, 3 by position, and reads
+    // the choice. Returns the chosen order's id, or 0 to wait.
     int readChefChoice(List<Customer> customersWithOrdersToPrepare);
 
     // Reads a whole number, asking again if the input is not one.

@@ -163,10 +163,11 @@ public class GameCLI implements GameView {
         for (int i = 0; i < customersWithOrdersToPrepare.size(); i++) {
             Customer customer = customersWithOrdersToPrepare.get(i);
             Order order = orderOf(customer);
-            say("%d. Prepare order %d for %s: %s (%s)", order.getOrderId(),
-                    order.getOrderId(), customer.getName(), dish(order), progress(order));
+            say("%d. Prepare order %d for %s: %s (%s)", i + 1, order.getOrderId(),
+                    customer.getName(), dish(order), progress(order));
         }
-        return readInt("Choose a chef action (0 = wait, or an order id): ");
+        int choice = readMenuNumber("Choose a chef action", customersWithOrdersToPrepare.size());
+        return choice == 0 ? 0 : orderOf(customersWithOrdersToPrepare.get(choice - 1)).getOrderId();
     }
 
     @Override

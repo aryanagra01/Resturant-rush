@@ -69,7 +69,9 @@ public class GameCLI implements GameView {
                 CriticCustomer.FAST_SERVICE_BONUS, CriticCustomer.FAST_SERVICE_TURNS);
         say("%nHappy Hour: once per game, at the start of a turn, you can switch it on for"
                 + " that turn and the next. Orders taken then get %d%% off, after any VIP"
-                + " discount.", HappyHour.DISCOUNT_PERCENT);
+                + " discount, and customers still waiting for a table or food recover %d"
+                + " satisfaction at the start of each Happy Hour turn.",
+                HappyHour.DISCOUNT_PERCENT, HappyHour.RECOVERY_POINTS);
         say(TARGETS, maxTurns, stats.getTargetPaidCustomers(),
                 formatMoney(stats.getTargetRevenueCents()), stats.getTargetAverageSatisfaction());
         List<MenuItem> menu = restaurant.getMenu();
@@ -208,6 +210,12 @@ public class GameCLI implements GameView {
     public void showHappyHourStarted(HappyHour happyHour) {
         say("Happy Hour is on for this turn and the next: new orders get %d%% off.",
                 HappyHour.DISCOUNT_PERCENT);
+    }
+
+    @Override
+    public void showRecovered(Customer c, int gained) {
+        say("%s recovered %d satisfaction (Happy Hour). Now %d.", c.getName(), gained,
+                c.getSatisfaction());
     }
 
     @Override

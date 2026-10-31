@@ -60,6 +60,7 @@ public class GameController {
         processArrivals();
         view.displayGameState(restaurant, currentTurn, settings.getMaxTurns());
         offerHappyHour();
+        processHappyHourRecovery();
         retryUntilValid(this::processWaiterChoice);
         retryUntilValid(this::processChefChoice);
         processEating();
@@ -106,6 +107,24 @@ public class GameController {
         if (happyHour.isAvailable() && view.readHappyHourChoice()) {
             happyHour.activate();
             view.showHappyHourStarted(happyHour);
+        }
+    }
+
+    // During each Happy Hour turn, customers still waiting for a table or food
+    // recover satisfaction at the start of the turn.
+    private void processHappyHourRecovery() {
+        if (!restaurant.getHappyHour().isActive()) {
+            return;
+        }
+        List<Customer> customers = restaurant.getCustomers();
+        for (int i = 0; i < customers.size(); i++) {
+            Customer customer = customers.get(i);
+            if (customer.isAwaitingService()) {
+                int gained = customer.recover(HappyHour.RECOVERY_POINTS);
+                if (gained > 0) {
+                    view.showRecovered(customer, gained);
+                }
+            }
         }
     }
 

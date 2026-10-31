@@ -49,6 +49,9 @@ public interface GameView {
 
     void showHappyHourStarted(HappyHour happyHour);
 
+    // A waiting customer recovered satisfaction during Happy Hour.
+    void showRecovered(Customer customer, int gained);
+
     void showWaits(Staff staff);
 
     void showSeated(Customer customer, Table table);

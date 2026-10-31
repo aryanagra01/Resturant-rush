@@ -179,6 +179,15 @@ public abstract class Customer {
         }
     }
 
+    // Raises satisfaction while the customer is still waiting for a table or food
+    // (Happy Hour), never above 100. Returns how much it actually went up.
+    public int recover(int amount) {
+        Require.state(isAwaitingService(), "Only a waiting customer can recover.");
+        int before = satisfaction;
+        increaseSatisfaction(amount);
+        return satisfaction - before;
+    }
+
     // Raises satisfaction for a subclass. Satisfaction cannot go above 100.
     protected void increaseSatisfaction(int amount) {
         Require.notNegative(amount, "Satisfaction increase");

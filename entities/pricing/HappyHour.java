@@ -5,11 +5,13 @@ import utility.Require;
 /**
  * Happy Hour: the manager can switch it on once per game, at the start of a turn.
  * It lasts for that turn and the next. Orders taken while it is on get 20% off,
- * after any VIP discount.
+ * after any VIP discount, and customers still waiting for a table or food recover
+ * 15 satisfaction at the start of each Happy Hour turn.
  */
 public class HappyHour implements PricingPolicy {
     public static final int DISCOUNT_PERCENT = 20;
     public static final int DURATION_TURNS = 2;
+    public static final int RECOVERY_POINTS = 15;
 
     private boolean used;
     private int turnsLeft;

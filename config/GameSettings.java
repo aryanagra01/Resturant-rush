@@ -1,6 +1,7 @@
 package config;
 
 import entities.customer.CustomerType;
+import entities.menu.ComboMeal;
 import entities.menu.MenuItem;
 import entities.restaurant.Restaurant;
 import java.util.List;
@@ -45,7 +46,7 @@ public final class GameSettings {
         this.targetAverageSatisfaction = targetAverageSatisfaction;
     }
 
-    // 18 turns, 2 tables, Salad/Pasta/Burger.
+    // 18 turns, 2 tables, Salad/Pasta/Burger and their three combos.
     // Arrivals on turns 1, 4, 7, 10, 13 and 16. Turn 4 is a VIP and turn 10 is a Critic.
     // Victory needs 4 paid customers, $45.00 revenue and average satisfaction 60.
     public static GameSettings base() {
@@ -58,14 +59,22 @@ public final class GameSettings {
         arrivals[10] = CustomerType.CRITIC;
         arrivals[13] = CustomerType.REGULAR;
         arrivals[16] = CustomerType.REGULAR;
+
+        MenuItem salad = new MenuItem("Salad", 900, 1);
+        MenuItem pasta = new MenuItem("Pasta", 1800, 2);
+        MenuItem burger = new MenuItem("Burger", 1500, 1);
         return new GameSettings(
                 maxTurns,
                 2,
-                // Order matters: Regular customers pick by index (id mod menu size).
+                // Order matters: Regular and VIP customers pick by index (id mod menu
+                // size), so customers whose id mod 6 is 3, 4 or 5 order a combo.
                 List.of(
-                        new MenuItem("Salad", 900, 1),
-                        new MenuItem("Pasta", 1800, 2),
-                        new MenuItem("Burger", 1500, 1)),
+                        salad,
+                        pasta,
+                        burger,
+                        new ComboMeal(salad, pasta),
+                        new ComboMeal(salad, burger),
+                        new ComboMeal(pasta, burger)),
                 arrivals,
                 4, 4500, 60);
     }

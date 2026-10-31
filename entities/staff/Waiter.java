@@ -4,6 +4,7 @@ import entities.customer.Customer;
 import entities.customer.CustomerStatus;
 import entities.customer.Order;
 import entities.menu.MenuItem;
+import entities.pricing.PricingPolicy;
 import entities.restaurant.Table;
 import java.util.Objects;
 import utility.Require;
@@ -12,9 +13,20 @@ import utility.Require;
 public class Waiter extends Staff {
     // Order ids start at 1 and increase by one for each order this waiter takes.
     private int nextOrderId = 1;
+    private final PricingPolicy pricing;
 
+    /** A waiter that charges the customer's own price, with no extra discount. */
     public Waiter(int staffId, String name) {
+        this(staffId, name, PricingPolicy.NONE);
+    }
+
+    /**
+     * @param pricing applied to every bill after the customer's own discount, for
+     *                example Happy Hour
+     */
+    public Waiter(int staffId, String name, PricingPolicy pricing) {
         super(staffId, name);
+        this.pricing = Objects.requireNonNull(pricing, "Pricing cannot be null.");
     }
 
     // Seats a waiting customer at a free table. The controller then removes them from the queue.
@@ -30,7 +42,8 @@ public class Waiter extends Staff {
         });
     }
 
-    // Takes a seated customer's order. The customer prices the bill, including any VIP discount.
+    // Takes a seated customer's order. The customer's own discount (VIP) comes first,
+    // then the pricing policy (Happy Hour). The bill is then fixed in the order.
     public Order takeOrder(Customer customer, MenuItem item, int turn) {
         return performTask(turn, () -> {
             Objects.requireNonNull(customer, "Customer cannot be null.");
@@ -39,7 +52,7 @@ public class Waiter extends Staff {
                     "Only a seated customer can place an order.");
             Require.rule(customer.canPlaceOrder(), "Customer already has an order.");
 
-            int billCents = customer.calculateBill(item.getPriceCents());
+            int billCents = pricing.apply(customer.calculateBill(item.getPriceCents()));
             Order order = new Order(nextOrderId, item, billCents, turn);
             customer.assignOrder(order);
             nextOrderId++;

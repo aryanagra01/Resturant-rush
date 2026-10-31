@@ -1,5 +1,7 @@
 package entities.customer;
 
+import entities.pricing.PricingPolicy;
+
 // Loses satisfaction more slowly and pays 10% less.
 public class VIPCustomer extends Customer {
     public static final int SATISFACTION_LOSS = 5;
@@ -19,9 +21,9 @@ public class VIPCustomer extends Customer {
         return SATISFACTION_LOSS;
     }
 
-    // Takes 10% off the price, in whole cents.
+    // Takes 10% off the price, rounded to the nearest cent like every other discount.
     @Override
     protected int applyDiscount(int priceCents) {
-        return priceCents - priceCents * DISCOUNT_PERCENT / 100;
+        return PricingPolicy.percentOff(priceCents, DISCOUNT_PERCENT);
     }
 }
